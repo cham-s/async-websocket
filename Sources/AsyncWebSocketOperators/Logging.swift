@@ -49,7 +49,7 @@ extension AsyncStream where Self.Element == AsyncWebSocketClient.Frame {
   ///  - parameters:
   ///  - action: A closure that prodives the current received for performing a logging action.
   public func log(
-    action: ((AsyncWebSocketClient.Frame) -> Void)? = nil
+    action: (@Sendable (AsyncWebSocketClient.Frame) -> Void)? = nil
   ) -> Self {
     return self.map { element in
       action?(element)
@@ -63,7 +63,7 @@ extension AsyncStream where Self.Element == AsyncWebSocketClient.ConnectionStatu
   /// Adds logging capability by logging every occuring event.
   ///  - parameters:
   ///  - action: A closure that prodives the current received for performing a logging action.
-  public func log(action: ((AsyncWebSocketClient.ConnectionStatus) -> Void)? = nil) -> Self {
+  public func log(action: (@Sendable (AsyncWebSocketClient.ConnectionStatus) -> Void)? = nil) -> Self {
     return self.map { element in
       action?(element)
       ?? defaultLogger(label: "com.async-webosocket-connection", dumping: element)

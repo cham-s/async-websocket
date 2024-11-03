@@ -3,6 +3,8 @@ import NIOHTTP1
 import NIOPosix
 import NIOWebSocket
 
+extension ChannelHandlerContext: @unchecked @retroactive Sendable { }
+
 final class WebSocketEchoHandler: ChannelInboundHandler {
   typealias InboundIn = WebSocketFrame
   typealias OutboundOut = WebSocketFrame

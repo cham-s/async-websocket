@@ -247,6 +247,8 @@ class AsyncWebSocketClientTests {
   }
 }
 
+extension HTTPHandler: @unchecked Sendable { }
+
 extension Tag {
   @Tag static var connection: Self
   @Tag static var frame: Self
