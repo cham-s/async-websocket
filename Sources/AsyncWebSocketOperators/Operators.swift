@@ -4,7 +4,11 @@ import ConcurrencyExtras
 import Foundation
 import NIOWebSocket
 
+#if swift(>=6.0)
 extension KeyPath: @unchecked @retroactive Sendable {}
+#else
+extension KeyPath: @unchecked Sendable {}
+#endif
 
 extension AsyncStream where Element == AsyncWebSocketClient.Frame {
   /// Listens for a particular event among many cases of an enum and subscribes to its associated value.
