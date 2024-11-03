@@ -33,7 +33,7 @@ let package = Package(
     .package(url: "https://github.com/pointfreeco/swift-case-paths.git", from: "1.5.6"),
     .package(url: "https://github.com/pointfreeco/swift-tagged.git", from: "0.10.0"),
     .package(url: "https://github.com/vapor/websocket-kit.git", from: "2.15.0"),
-    .package(url: "https://github.com/cham-s/general-types", from: "0.1.0-beta"),
+    .package(url: "https://github.com/cham-s/general-types", from: "0.1.1-beta"),
   ],
   
   targets: [
@@ -43,6 +43,7 @@ let package = Package(
        dependencies: [
          "AsyncWebSocketClient",
          "AsyncWebSocketClientLive",
+         "AsyncWebSocketOperators",
          .product(name: "NIOCore", package: "swift-nio"),
          .product(name: "NIOPosix", package: "swift-nio"),
          .product(name: "Dependencies", package: "swift-dependencies"),

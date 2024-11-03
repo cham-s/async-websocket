@@ -14,8 +14,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/cham-s/general-types",
       "state" : {
-        "revision" : "4953499a37122a0e847e440ab395254e3da4c7a5",
-        "version" : "0.1.0-beta"
+        "revision" : "2a6691a10619cff3182753ab2e3912944799ce81",
+        "version" : "0.1.1-beta"
       }
     },
     {
