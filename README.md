@@ -104,7 +104,9 @@ extension AsyncStream where Element == AsyncWebSocketClient.Frame {
 ```
 
 <details>
+  
 <summary>Shell log session</summary>
+
 ```shellsession
 2024-11-03T12:10:56+0100 info com.async-webosocket-connection : [AsyncWebSocketOperators] : AsyncWebSocketClient.ConnectionStatus.connecting
 2024-11-03T12:10:56+0100 info com.async-webosocket-connection : [AsyncWebSocketOperators] : AsyncWebSocketClient.ConnectionStatus.connected
@@ -181,17 +183,17 @@ New emoji:  🌺
 New emoji:  💞
 2024-11-03T12:10:58+0100 info com.async-webosocket-frame : [AsyncWebSocketOperators] : AsyncWebSocketClient.Frame.close(code: .unexpectedServerError)
 2024-11-03T12:10:58+0100 info com.async-webosocket-connection : [AsyncWebSocketOperators] : AsyncWebSocketClient.ConnectionStatus.didClose(.unexpectedServerError)
-
 ```
 </details>
 
 ##### Custom logger
 
-In this example we walk through implementing a custom log operation that will be used in the operator.
+In this example we go through implementing a custom log operation that will be used in the operator.
 Here a formatted output is presented to emphasize each json frame received.
 
 <details>
-<summary>`formatted` implementation</summary> 
+<summary><code>formatted(title: String, message: String)</code> implementation</summary> 
+  
 ```swift
 fileprivate func formatted(
   title: String,
@@ -391,6 +393,7 @@ New emoji:  🍹
 2024-11-03T12:17:10+0100 info Emoji-Server-Client : Frame Update= close(code: NIOWebSocket.WebSocketErrorCode.unexpectedServerError) [EmojisDemo] 
 2024-11-03T12:17:10+0100 info com.async-webosocket-connection : [AsyncWebSocketOperators] : AsyncWebSocketClient.ConnectionStatus.didClose(.unexpectedServerError)
 ```
+</details>
 
 ## Getting started <a name="getting-started"></a>
 
@@ -482,8 +485,13 @@ struct MainApp {
 ```
 
 ## Things to be aware of <a name="aware-of"></a>
+- [WebSocket frames subset](#subset)
 
-#### Subset of WebSocket frames
+- [Import the necessary](#import)
+
+- [Swift Macros](#macros)
+
+#### WebSocket frames subset <a name="subset"></a>
 
 For simplicity the client only supports the most uses frames to be sent or received.
 
@@ -493,7 +501,7 @@ For simplicity the client only supports the most uses frames to be sent or recei
 - pong, to respond to a ping
 - close, to close the connection with the other endpoint
 
-#### Import what is needed
+#### Import the necessary <a name="import"></a>
 
 For modularity the package contains four targets it is important to select only what is needed for a given situation.
 
@@ -501,6 +509,19 @@ For modularity the package contains four targets it is important to select only 
 
 ```swift
 import AsyncWebSocket
+```
+
+
+<h5>Imported modules</h5>
+  
+```swift
+import AsyncWebSocketClient
+import AsyncWebSocketClientLive
+import AsyncWebSocketOperators
+import Dependencies
+import NIOCore
+import NIOPosix
+import WebSocketKit
 ```
 
 This target is an umbrella target that import all targets it is for people who find selecting the right library confusing or just want to quickly test the library without guessing what library contains what feature.
@@ -584,7 +605,7 @@ public func log(action: ((AsyncWebSocketClient.Frame) -> Void)? = nil)
 
 The thing is to compose with the right set of target needed a given situation.
 
-#### Swift Macros
+#### Swift Macros<a name="macros"></a>
 
 The package itself doesn't use Swift Macros but depends on packages that take advantage of this powerful feature, so XCode might ask you to enable the feature for packages that use it.
 
