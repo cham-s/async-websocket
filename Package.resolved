@@ -172,6 +172,15 @@
       }
     },
     {
+      "identity" : "swift-testing",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swiftlang/swift-testing",
+      "state" : {
+        "revision" : "cd448bbe5cc989d8693ca75e9b08593eb143dea1",
+        "version" : "6.0.2"
+      }
+    },
+    {
       "identity" : "websocket-kit",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/vapor/websocket-kit.git",
