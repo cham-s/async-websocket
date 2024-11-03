@@ -158,17 +158,98 @@ class AsyncWebSocketClientTests {
     }
   }
   
+//  @Test(
+//    "Check sending a frame",
+//    .tags(.frame),
+//    .serialized,
+//    arguments: [
+//      AsyncWebSocketClient.Frame.ping(),
+//      .message(.binary("Hello".data(using: .utf8)!)),
+//    ]
+//  )
+//  func frame(frame: AsyncWebSocketClient.Frame) async throws {
+//    let webSocketActor = AsyncWebSocketClient.WebSocketActor()
+//    #expect(await webSocketActor.connections.count == 0)
+//    try #require(self.serverChannel != nil)
+//    
+//    let (host, port) = try #require(self.hostAndPort)
+//    
+//    let id = AsyncWebSocketClient.ID()
+//    
+//    let statuses = try await webSocketActor.open(
+//      settings: AsyncWebSocketClient.Settings(
+//        id: id,
+//        url: "ws://\(host)",
+//        port: port
+//      )
+//    )
+//    
+//    var statusIterator = statuses.makeAsyncIterator()
+//    #expect(await statusIterator.next() == .connecting)
+//    #expect(await statusIterator.next() == .connected)
+//    
+//    #expect(await webSocketActor.connections.count == 1)
+//    
+//    let connectionId = try #require(await webSocketActor.connections.keys.first)
+//    #expect(connectionId == id)
+//    
+//    let frameStream = try await webSocketActor.receive(id: id)
+//    var frameIterator = frameStream.makeAsyncIterator()
+//    
+//    let frameTask = Task {
+//      if frame.is(\.message.text) {
+//        try await webSocketActor.send(
+//          id: id,
+//          frame: .message(.text("Hello"))
+//        )
+//      } else if frame.is(\.message.binary) {
+//        try await webSocketActor.send(
+//          id: id,
+//          frame: .message(.binary("Hello".data(using: .utf8)!))
+//        )
+//      } else if frame.is(\.ping) {
+//        try await webSocketActor.send(
+//          id: id,
+//          frame: .ping()
+//        )
+//      }
+//    }
+//    
+//    await Task.yield()
+//    _ = try await frameTask.value
+//
+//    let receivedFrame = await frameIterator.next()
+//    
+//    if frame.is(\.message.text) {
+//      #expect(receivedFrame == .message(.text("Hello")))
+//    } else if frame.is(\.message.binary) {
+//      #expect(receivedFrame == .message(.binary("Hello".data(using: .utf8)!)))
+//    } else if frame.is(\.ping) {
+//      #expect(receivedFrame == .pong())
+//    }
+//    
+//    let closeTask = Task {
+//      try await webSocketActor.send(
+//        id: id,
+//        frame: .close(code: .normalClosure)
+//      )
+//    }
+//    
+//    await Task.yield()
+//    _ = try await closeTask.value
+//    
+//    #expect(await statusIterator.next() == .didClose(.normalClosure))
+//    
+//    try await Task.sleep(for: .nanoseconds(500))
+//    #expect(await webSocketActor.connections.count == 0)
+//
+//  }
+  
   @Test(
-    "Check sending a frame",
-    .tags(.frame),
-    .serialized,
-    arguments: [
-      AsyncWebSocketClient.Frame.ping(),
-      .message(.text("Hello")),
-      .message(.binary("Hello".data(using: .utf8)!)),
-    ]
+    "Check text frame",
+    .tags(.frame)
   )
-  func frame(frame: AsyncWebSocketClient.Frame) async throws {
+  func text() async throws {
     let webSocketActor = AsyncWebSocketClient.WebSocketActor()
     #expect(await webSocketActor.connections.count == 0)
     try #require(self.serverChannel != nil)
@@ -198,22 +279,10 @@ class AsyncWebSocketClientTests {
     var frameIterator = frameStream.makeAsyncIterator()
     
     let frameTask = Task {
-      if frame.is(\.message.text) {
-        try await webSocketActor.send(
-          id: id,
-          frame: .message(.text("Hello"))
-        )
-      } else if frame.is(\.message.binary) {
-        try await webSocketActor.send(
-          id: id,
-          frame: .message(.binary("Hello".data(using: .utf8)!))
-        )
-      } else if frame.is(\.ping) {
-        try await webSocketActor.send(
-          id: id,
-          frame: .ping()
-        )
-      }
+      try await webSocketActor.send(
+        id: id,
+        frame: .message(.text("Hello"))
+      )
     }
     
     await Task.yield()
@@ -221,13 +290,134 @@ class AsyncWebSocketClientTests {
 
     let receivedFrame = await frameIterator.next()
     
-    if frame.is(\.message.text) {
-      #expect(receivedFrame == .message(.text("Hello")))
-    } else if frame.is(\.message.binary) {
-      #expect(receivedFrame == .message(.binary("Hello".data(using: .utf8)!)))
-    } else if frame.is(\.ping) {
-      #expect(receivedFrame == .pong())
+    #expect(receivedFrame == .message(.text("Hello")))
+    
+    let closeTask = Task {
+      try await webSocketActor.send(
+        id: id,
+        frame: .close(code: .normalClosure)
+      )
     }
+    
+    await Task.yield()
+    _ = try await closeTask.value
+    
+    #expect(await statusIterator.next() == .didClose(.normalClosure))
+    
+    try await Task.sleep(for: .nanoseconds(500))
+    #expect(await webSocketActor.connections.count == 0)
+  }
+  
+  @Test(
+    "Check data frame",
+    .tags(.frame)
+  )
+  
+  func data() async throws {
+    let webSocketActor = AsyncWebSocketClient.WebSocketActor()
+    #expect(await webSocketActor.connections.count == 0)
+    try #require(self.serverChannel != nil)
+    
+    let (host, port) = try #require(self.hostAndPort)
+    
+    let id = AsyncWebSocketClient.ID()
+    
+    let statuses = try await webSocketActor.open(
+      settings: AsyncWebSocketClient.Settings(
+        id: id,
+        url: "ws://\(host)",
+        port: port
+      )
+    )
+    
+    var statusIterator = statuses.makeAsyncIterator()
+    #expect(await statusIterator.next() == .connecting)
+    #expect(await statusIterator.next() == .connected)
+    
+    #expect(await webSocketActor.connections.count == 1)
+    
+    let connectionId = try #require(await webSocketActor.connections.keys.first)
+    #expect(connectionId == id)
+    
+    let frameStream = try await webSocketActor.receive(id: id)
+    var frameIterator = frameStream.makeAsyncIterator()
+    
+    let frameTask = Task {
+      try await webSocketActor.send(
+        id: id,
+        frame: .message(.binary("Hello".data(using: .utf8)!))
+      )
+    }
+    
+    await Task.yield()
+    _ = try await frameTask.value
+
+    let receivedFrame = await frameIterator.next()
+    
+    #expect(receivedFrame ==  .message(.binary("Hello".data(using: .utf8)!)))
+    
+    let closeTask = Task {
+      try await webSocketActor.send(
+        id: id,
+        frame: .close(code: .normalClosure)
+      )
+    }
+    
+    await Task.yield()
+    _ = try await closeTask.value
+    
+    #expect(await statusIterator.next() == .didClose(.normalClosure))
+    
+    try await Task.sleep(for: .nanoseconds(500))
+    #expect(await webSocketActor.connections.count == 0)
+  }
+  
+  @Test(
+    "Check data frame",
+    .tags(.frame)
+  )
+  func ping() async throws {
+    let webSocketActor = AsyncWebSocketClient.WebSocketActor()
+    #expect(await webSocketActor.connections.count == 0)
+    try #require(self.serverChannel != nil)
+    
+    let (host, port) = try #require(self.hostAndPort)
+    
+    let id = AsyncWebSocketClient.ID()
+    
+    let statuses = try await webSocketActor.open(
+      settings: AsyncWebSocketClient.Settings(
+        id: id,
+        url: "ws://\(host)",
+        port: port
+      )
+    )
+    
+    var statusIterator = statuses.makeAsyncIterator()
+    #expect(await statusIterator.next() == .connecting)
+    #expect(await statusIterator.next() == .connected)
+    
+    #expect(await webSocketActor.connections.count == 1)
+    
+    let connectionId = try #require(await webSocketActor.connections.keys.first)
+    #expect(connectionId == id)
+    
+    let frameStream = try await webSocketActor.receive(id: id)
+    var frameIterator = frameStream.makeAsyncIterator()
+    
+    let frameTask = Task {
+      try await webSocketActor.send(
+        id: id,
+        frame: .ping()
+      )
+    }
+    
+    await Task.yield()
+    _ = try await frameTask.value
+
+    let receivedFrame = await frameIterator.next()
+    
+    #expect(receivedFrame ==  .pong())
     
     let closeTask = Task {
       try await webSocketActor.send(
