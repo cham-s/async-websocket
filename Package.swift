@@ -28,7 +28,7 @@ let package = Package(
   dependencies: [
     .package(url: "https://github.com/apple/swift-nio.git", from: "2.76.1"),
     .package(url: "https://github.com/apple/swift-log.git", from: "1.6.1"),
-    .package(url: "https://github.com/swiftlang/swift-testing.git", from: "6.0.2"),
+//    .package(url: "https://github.com/swiftlang/swift-testing.git", from: "6.0.2"),
     .package(url: "https://github.com/pointfreeco/swift-dependencies", from: "1.4.1"),
     .package(url: "https://github.com/pointfreeco/swift-custom-dump.git", from: "1.3.3"),
     .package(url: "https://github.com/pointfreeco/swift-case-paths.git", from: "1.5.6"),
@@ -99,7 +99,7 @@ let package = Package(
          .product(name: "NIOHTTP1", package: "swift-nio"),
          .product(name: "NIOPosix", package: "swift-nio"),
          .product(name: "NIOWebSocket", package: "swift-nio"),
-         .product(name: "Testing", package: "swift-testing"),
+//         .product(name: "Testing", package: "swift-testing"),
        ]
      ),
   ]
