@@ -14,6 +14,8 @@ A client for handling commumication via the WebSocket protocol using Swift `asyn
 
 - [Getting started](#getting-started)
 
+- [More examples](#more-examples)
+
 - [Things to be aware of](#aware-of)
 
 - [Credits and inspirations](#credits)
@@ -77,7 +79,7 @@ This operator still delivers events but at the same time logs logs them using a 
 
 In the following example we:
 
-1. Connect to a local WebSocket Emojis Server (a server that communicates with a client via requests here we start the stream to receive a random emoji for every second)
+1. Connect to a local  [WebSocket Emojis Server](https://github.com/cham-s/async-websocket-examples/tree/main/Sources/EmojisServer) (a server that communicates with a client via requests here we start the stream to receive a random emoji for every second)
 
 2. Listen for a couple of events
 
@@ -104,7 +106,7 @@ extension AsyncStream where Element == AsyncWebSocketClient.Frame {
 ```
 
 <details>
-  
+
 <summary>Shell log session</summary>
 
 ```shellsession
@@ -184,6 +186,7 @@ New emoji:  💞
 2024-11-03T12:10:58+0100 info com.async-webosocket-frame : [AsyncWebSocketOperators] : AsyncWebSocketClient.Frame.close(code: .unexpectedServerError)
 2024-11-03T12:10:58+0100 info com.async-webosocket-connection : [AsyncWebSocketOperators] : AsyncWebSocketClient.ConnectionStatus.didClose(.unexpectedServerError)
 ```
+
 </details>
 
 ##### Custom logger
@@ -192,8 +195,8 @@ In this example we go through implementing a custom log operation that will be u
 Here a formatted output is presented to emphasize each json frame received.
 
 <details>
-<summary><code>formatted(title: String, message: String)</code> implementation</summary> 
-  
+<summary><code>formatted(title: String, message: String)</code> implementation</summary>
+
 ```swift
 fileprivate func formatted(
   title: String,
@@ -393,6 +396,7 @@ New emoji:  🍹
 2024-11-03T12:17:10+0100 info Emoji-Server-Client : Frame Update= close(code: NIOWebSocket.WebSocketErrorCode.unexpectedServerError) [EmojisDemo] 
 2024-11-03T12:17:10+0100 info com.async-webosocket-connection : [AsyncWebSocketOperators] : AsyncWebSocketClient.ConnectionStatus.didClose(.unexpectedServerError)
 ```
+
 </details>
 
 ## Getting started <a name="getting-started"></a>
@@ -484,7 +488,12 @@ struct MainApp {
 }
 ```
 
+## More examples <a name="more-examples"></a>
+
+There is a dedicaded package with examples demos that demonstrates different uses of the library: [examples-package](https://github.com/cham-s/async-websocket-examples)
+
 ## Things to be aware of <a name="aware-of"></a>
+
 - [WebSocket frames subset](#subset)
 
 - [Import the necessary](#import)
@@ -511,9 +520,8 @@ For modularity the package contains four targets it is important to select only 
 import AsyncWebSocket
 ```
 
-
 <h5>Imported modules</h5>
-  
+
 ```swift
 import AsyncWebSocketClient
 import AsyncWebSocketClientLive
