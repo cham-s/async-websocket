@@ -490,7 +490,7 @@ struct MainApp {
 
 ## More examples <a name="more-examples"></a>
 
-There is a dedicaded package with examples demos that demonstrates different uses of the library: [examples-package](https://github.com/cham-s/async-websocket-examples)
+There is a dedicaded package with example demos that demonstrates different uses of the library: [examples-package](https://github.com/cham-s/async-websocket-examples)
 
 ## Things to be aware of <a name="aware-of"></a>
 
