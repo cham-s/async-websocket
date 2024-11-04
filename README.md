@@ -493,7 +493,7 @@ struct MainApp {
 
 #### WebSocket frames subset <a name="subset"></a>
 
-For simplicity the client only supports the most uses frames to be sent or received.
+For simplicity the client only supports the most use frames to be sent or received.
 
 - message.data,  acollection of bytes
 - message.text, an encoded string
