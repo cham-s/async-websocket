@@ -504,7 +504,7 @@ There is a dedicaded package with example demos that demonstrates different uses
 
 For simplicity the client only supports the most use frames to be sent or received.
 
-- message.data,  acollection of bytes
+- message.data, a collection of bytes
 - message.text, an encoded string
 - ping, to check if the connection with the other endpoint is still alive
 - pong, to respond to a ping
@@ -600,18 +600,18 @@ extension AsyncStream where Self.Element == AsyncWebSocketClient.ConnectionStatu
 /// Adds logging capability by logging every occuring event.
 ///  - parameters:
 ///  - action: A closure that prodives the current received for performing a logging action.
-public func log(action: ((AsyncWebSocketClient.Frame) -> Void)? = nil) 
+public func log(action: (@Sendable (AsyncWebSocketClient.Frame) -> Void)? = nil) 
 -> Self { ... }
 
 
 /// Adds logging capability by logging every occuring event.
   ///  - parameters:
   ///  - action: A closure that prodives the current received for performing a logging action.
-  public func log(action: ((AsyncWebSocketClient.ConnectionStatus) -> Void)? = nil) 
+  public func log(action: (@Sendable (AsyncWebSocketClient.ConnectionStatus) -> Void)? = nil) 
 -> Self { ... }
 ```
 
-The thing is to compose with the right set of target needed a given situation.
+The thing is to compose with the right set of module needed for a given situation.
 
 #### Swift Macros<a name="macros"></a>
 

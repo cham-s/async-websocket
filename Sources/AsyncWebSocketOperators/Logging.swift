@@ -3,42 +3,6 @@ import CustomDump
 import Logging
 
 extension AsyncWebSocketClient.ConnectionStatus {
-  /// String representation of the status.
-  public var asString: String {
-    switch self {
-    case .connected:
-      return "Connected"
-    case .connecting:
-      return "Connecting..."
-    case .didFail:
-      return "Failure"
-    case .didClose:
-      return "Closed"
-    }
-  }
-  
-  public var customDump: String {
-    String(customDumping: self)
-  }
-}
-
-extension AsyncWebSocketClient.Frame {
-  /// String representation of the frame.
-  public var asString: String {
-    switch self {
-    case .message(.text):
-      return "Message.text"
-    case .message(.binary):
-      return "Message.binary"
-    case .ping:
-      return "ping"
-    case .pong:
-      return "pong"
-    case .close:
-      return "close"
-    }
-  }
-  
   public var customDump: String {
     String(customDumping: self)
   }
