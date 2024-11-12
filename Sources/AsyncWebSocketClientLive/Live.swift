@@ -26,14 +26,14 @@ extension AsyncWebSocketClient: DependencyKey {
   )
   
   /// An actor for handling the logic for the live implementation of the AsyncWebSocketClient.
-  final actor WebSocketActor: GlobalActor {
+  final actor WebSocketActor: Sendable, GlobalActor {
     typealias Connection = (
       webSocket: WebSocket?,
       frame: AsyncStreamTypes.Stream<Frame>?,
       status: AsyncStreamTypes.Stream<ConnectionStatus>?
     )
     
-    /// EventLoop group to be used for during the connection with the server.
+    /// EventLoop group to be used during the connection with the server.
     var eventLoopGroup: MultiThreadedEventLoopGroup? = nil
     /// A list of all current running connections.
     var connections: [ID: Connection] = [:]
@@ -92,20 +92,6 @@ extension AsyncWebSocketClient: DependencyKey {
       let status = self.makeStatus(id: settings.id)
       self.connections[settings.id] = Connection(nil, frame, status)
 
-      // TODO: remove comments if not used.
-//      let connectionTask = Task.detached(priority: .high) {
-//        await self.connect(
-//          id: settings.id,
-//          url: url,
-//          pingInterval: settings.pingInterval,
-//          frame: frame,
-//          status: status,
-//          group: elg
-//        )
-//      }
-//      await Task.yield()
-//      await connectionTask.value
-      
       self.connect(
         id: settings.id,
         url: url,
@@ -184,8 +170,7 @@ extension AsyncWebSocketClient: DependencyKey {
         case .success:
           status.continuation.yield(.connected)
         case let .failure(error):
-          status.continuation.yield(.didFail(error as NSError))
-          status.continuation.finish()
+          status.continuation.yield(finalValue: .didFail(error as NSError))
         }
       }
     }
@@ -239,6 +224,7 @@ extension AsyncWebSocketClient: DependencyKey {
         )
       case let .close(code):
         try await connection.webSocket?.close(code: code)
+        self.removeConnection(for: id)
       }
     }
     

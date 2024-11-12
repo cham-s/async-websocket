@@ -72,6 +72,77 @@ class AsyncWebSocketClientTests {
   }
   
   @Test(
+    "Check connection ivalid WebSocket URL",
+    .tags(.connection)
+  )
+  func connectionWithInvalidURL() async throws {
+    let webSocketActor = AsyncWebSocketClient.WebSocketActor()
+
+    let openTask = Task {
+      _ = try await webSocketActor.open(
+        settings: AsyncWebSocketClient.Settings(
+          id:  AsyncWebSocketClient.ID(),
+          url: "ooo://localhost-\(UUID().uuidString)",
+          port: 9999
+        )
+      )
+    }
+    
+    await Task.yield()
+    
+    // Checks that an error was thrown from the server.
+    let result = await openTask.result
+    guard
+      case let .failure(error) = result,
+      let error = error as? AsyncWebSocketClient.WebSocketActor.WebSocketError
+    else {
+      throw WebSocketExpectationFailure()
+    }
+    
+    #expect(error == .invalidWebSocketURLFormat)
+  }
+
+  @Test(
+    "Check connection Error",
+    .tags(.connection)
+  )
+  func connectionWithExpectedError() async throws {
+    let webSocketActor = AsyncWebSocketClient.WebSocketActor()
+
+    let id = AsyncWebSocketClient.ID()
+    
+    let statuses = try await webSocketActor.open(
+      settings: AsyncWebSocketClient.Settings(
+        id: id,
+        url: "ws://localhost-\(UUID().uuidString)",
+        port: 9999
+      )
+    )
+    
+    #expect(await webSocketActor.connections.count == 1)
+    
+    // Checks connection status evolution.
+    var statusIterator = statuses.makeAsyncIterator()
+    #expect(await statusIterator.next() == .connecting)
+    let status = await statusIterator.next()
+    
+
+    // Checks that an error was thrown.
+    guard
+      case .didFail = status
+    else {
+      throw WebSocketExpectationFailure()
+    }
+    
+    // Checks if the connection is closed.
+    let isClosed = try await connectionIsClosed(webSocketActor, id: id)
+    #expect(isClosed)
+    
+    // Checks if there is no more active connection inside the actor.
+    #expect(await webSocketActor.connections.count == 0)
+  }
+  
+  @Test(
     "Check connection with valid URL",
     .tags(.connection)
   )
@@ -92,19 +163,17 @@ class AsyncWebSocketClientTests {
     
     // Checks connection status evolution.
     var statusIterator = statuses.makeAsyncIterator()
-    var status = await statusIterator.next()
     
     // Checks for status evolution.
+    var status = await statusIterator.next()
     #expect(status == .connecting)
-    
     status = await statusIterator.next()
-    
     #expect(status == .connected)
     #expect(await webSocketActor.connections.count == 1)
     
-    let firstId = try #require(await webSocketActor.connections.keys.first)
-    
-    #expect(firstId == id)
+    _ = try #require(
+      await webSocketActor.connections.keys.first(where: { $0 == id })
+    )
     
     // Closes the connection.
     try await webSocketActor.send(
@@ -118,8 +187,10 @@ class AsyncWebSocketClientTests {
     // Checks if the connection is closed.
     let isClosed = try await connectionIsClosed(webSocketActor, id: id)
     #expect(isClosed)
+    
+    // Checks if there is no more active connection inside the actor.
+    #expect(await webSocketActor.connections.count == 0)
   }
-  
   
   @Test(
     "Check for throwing error when calling send on a closed connection",
@@ -133,6 +204,9 @@ class AsyncWebSocketClientTests {
     
     let isClosed = try await connectionIsClosed(webSocketActor, id: id)
     #expect(isClosed)
+    
+    // Checks if there is no more active connection inside the actor.
+    #expect(await webSocketActor.connections.count == 0)
   }
   
   @Test(
@@ -158,6 +232,9 @@ class AsyncWebSocketClientTests {
       throw WebSocketExpectationFailure()
     }
     #expect(error == .connectionClosed)
+    
+    // Checks if there is no more active connection inside the actor.
+    #expect(await webSocketActor.connections.count == 0)
   }
   
   @Test(
@@ -180,6 +257,8 @@ class AsyncWebSocketClientTests {
         port: port
       )
     )
+    
+    #expect(await webSocketActor.connections.count == 1)
     
     // Checks for status evolution.
     var statusIterator = statuses.makeAsyncIterator()
@@ -227,6 +306,9 @@ class AsyncWebSocketClientTests {
     // Checks if the connection is closed.
     let isClosed = try await connectionIsClosed(webSocketActor, id: id)
     #expect(isClosed)
+    
+    // Checks if there is no more active connection inside the actor.
+    #expect(await webSocketActor.connections.count == 0)
   }
   
   @Test(
@@ -303,6 +385,9 @@ class AsyncWebSocketClientTests {
     // Checks if the connection is closed.
     let isClosed = try await connectionIsClosed(webSocketActor, id: id)
     #expect(isClosed)
+    
+    // Checks if there is no more active connection inside the actor.
+    #expect(await webSocketActor.connections.count == 0)
   }
   
   @Test(
@@ -372,6 +457,9 @@ class AsyncWebSocketClientTests {
     // Checks if the connection is closed.
     let isClosed = try await connectionIsClosed(webSocketActor, id: id)
     #expect(isClosed)
+    
+    // Checks if there is no more active connection inside the actor.
+    #expect(await webSocketActor.connections.count == 0)
   }
   
   // - opens two connections ID1, ID2
@@ -399,6 +487,8 @@ class AsyncWebSocketClientTests {
       )
     )
     
+    #expect(await webSocketActor.connections.count == 1)
+    
     // Subscribes for connection statuses for id2.
     let statuses2 = try await webSocketActor.open(
       settings: AsyncWebSocketClient.Settings(
@@ -407,6 +497,8 @@ class AsyncWebSocketClientTests {
         port: port
       )
     )
+    
+    #expect(await webSocketActor.connections.count == 2)
     
     // Checks for status evolution for id1.
     var statusIterator1 = statuses1.makeAsyncIterator()
@@ -508,6 +600,9 @@ class AsyncWebSocketClientTests {
     // Checks that connection is closed for id2.
     let isClosedId2 = try await connectionIsClosed(webSocketActor, id: id1)
     #expect(isClosedId2)
+    
+    // Checks if there is no more active connection inside the actor.
+    #expect(await webSocketActor.connections.count == 0)
   }
 }
 

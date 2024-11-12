@@ -1,4 +1,14 @@
 # This workflow builds and tests async-websocket 
+# on events:
+#   - pushes
+#   - pull-requests
+#
+# on platforms:
+#   - macOS 15
+#   - latest Ubuntu
+#
+# interval:
+#   - Once a day
 
 name: CI
 
@@ -10,10 +20,11 @@ on:
     branches: 
       - 'main'
   schedule:
+      cron: 0 0 * * *
 
 jobs:
   macOS-15:
-    runs-on: macos-15
+    runs-on: macOS-15
 
     steps:
     - uses: actions/checkout@v4
