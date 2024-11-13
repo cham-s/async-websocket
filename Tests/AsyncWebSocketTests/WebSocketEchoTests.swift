@@ -119,14 +119,11 @@ class AsyncWebSocketClientTests {
       )
     )
     
-    #expect(await webSocketActor.connections.count == 1)
-    
     // Checks connection status evolution.
     var statusIterator = statuses.makeAsyncIterator()
     #expect(await statusIterator.next() == .connecting)
     let status = await statusIterator.next()
     
-
     // Checks that an error was thrown.
     guard
       case .didFail = status
@@ -258,13 +255,13 @@ class AsyncWebSocketClientTests {
       )
     )
     
-    #expect(await webSocketActor.connections.count == 1)
     
     // Checks for status evolution.
     var statusIterator = statuses.makeAsyncIterator()
     #expect(await statusIterator.next() == .connecting)
     #expect(await statusIterator.next() == .connected)
-    
+    #expect(await webSocketActor.connections.count == 1)
+
     // Checks if a connection was added to the collection with the corresponding ID.
     _ = try #require(
       await webSocketActor.connections.keys.first(where: { $0 == id })
@@ -487,8 +484,6 @@ class AsyncWebSocketClientTests {
       )
     )
     
-    #expect(await webSocketActor.connections.count == 1)
-    
     // Subscribes for connection statuses for id2.
     let statuses2 = try await webSocketActor.open(
       settings: AsyncWebSocketClient.Settings(
@@ -498,18 +493,19 @@ class AsyncWebSocketClientTests {
       )
     )
     
-    #expect(await webSocketActor.connections.count == 2)
-    
     // Checks for status evolution for id1.
     var statusIterator1 = statuses1.makeAsyncIterator()
     #expect(await statusIterator1.next() == .connecting)
     #expect(await statusIterator1.next() == .connected)
+    let count = await webSocketActor.connections.count
+    print("count: \(count)")
 
     // Checks for status evolution for id2.
     var statusIterator2 = statuses2.makeAsyncIterator()
     #expect(await statusIterator2.next() == .connecting)
     #expect(await statusIterator2.next() == .connected)
-    
+    #expect(await webSocketActor.connections.count == 2)
+
     // Checks if a connection was added to the collection with the corresponding ID.
     _ = try #require(
       await webSocketActor.connections.keys.first(where: { $0 == id1 })
@@ -571,7 +567,8 @@ class AsyncWebSocketClientTests {
     #expect(await statusIterator1.next() == .didClose(.goingAway))
     #expect(await frameIterator1.next() == nil)
     #expect(await statusIterator1.next() == nil)
-    
+    #expect(await webSocketActor.connections.count == 1)
+
     // Checks that connection is closed for id1.
     let isClosedId1 = try await connectionIsClosed(webSocketActor, id: id1)
     #expect(isClosedId1)

@@ -90,7 +90,6 @@ extension AsyncWebSocketClient: DependencyKey {
       self.eventLoopGroup = elg
       let frame = self.makeFrame(id: settings.id)
       let status = self.makeStatus(id: settings.id)
-      self.connections[settings.id] = Connection(nil, frame, status)
 
       self.connect(
         id: settings.id,
@@ -127,7 +126,12 @@ extension AsyncWebSocketClient: DependencyKey {
         }
         
         Task {
-          await self.add(webSocket, id: id)
+          await self.add(
+            webSocket,
+            id: id,
+            frame: frame,
+            status: status
+          )
         }
         
         webSocket.onText { _, text in
@@ -239,8 +243,17 @@ extension AsyncWebSocketClient: DependencyKey {
     }
     
     /// Adds a WebSocket object to the list of connection.
-    private func add(_ webSocket: WebSocket, id: ID) {
-      self.connections[id]?.webSocket = webSocket
+    private func add(
+      _ webSocket: WebSocket,
+      id: ID,
+      frame: AsyncStreamTypes.Stream<Frame>,
+      status: AsyncStreamTypes.Stream<ConnectionStatus>
+    ) {
+      self.connections[id] = (
+        webSocket,
+        frame,
+        status
+      )
     }
     
     /// Picks a connection from the list.
