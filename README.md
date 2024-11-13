@@ -570,7 +570,7 @@ This target contains code for additional functionalities to improve the use of t
 /// If no associated value is available Void is emitted.
 ///  - Parameters:
 ///   - status: A CaseKeyPath for accessing the desired frame.
-///   - onClose: A closure to invoke uppon close..
+///   - onClose: A closure to invoke upon close..
 public func on<Value>(
   _ frame: CaseKeyPath<AsyncWebSocketClient.Frame, Value>,
   onClose: (@Sendable (WebSocketErrorCode) async -> Void)? = nil
@@ -581,8 +581,8 @@ public func on<Value>(
 /// If no associated value is available Void is emitted.
 ///  - Parameters:
 ///   - status: A CaseKeyPath for accessing the desired status.
-///   - onClose: A closure to invoke uppon close.
-///   - onDidFail: A closure to invoke uppon failure..
+///   - onClose: A closure to invoke upon close.
+///   - onDidFail: A closure to invoke upon failure..
 public func on<Value>(
   _ status: CaseKeyPath<AsyncWebSocketClient.ConnectionStatus, Value>,
   onDidClose: (@Sendable (WebSocketErrorCode) async -> Void)? = nil,
