@@ -8,7 +8,7 @@ import Testing
 @testable import AsyncWebSocketClientLive
 
 @MainActor
-class AsyncWebSocketClientTests {
+class AsyncWebSocketBasicTests {
   private var group: EventLoopGroup!
   
   private var serverChannel: Channel!
@@ -96,7 +96,8 @@ class AsyncWebSocketClientTests {
       case let .failure(error) = result,
       let error = error as? AsyncWebSocketClient.WebSocketActor.WebSocketError
     else {
-      throw ExplicitFailure()
+      #expect(Bool(false))
+      return
     }
     
     #expect(error == .invalidWebSocketURLFormat)
@@ -128,7 +129,8 @@ class AsyncWebSocketClientTests {
     guard
       case .didFail = status
     else {
-      throw ExplicitFailure()
+      #expect(Bool(false))
+      return
     }
     
     // Checks if the connection is closed.
@@ -226,7 +228,8 @@ class AsyncWebSocketClientTests {
       case let .failure(error) = result,
       let error = error as? AsyncWebSocketClient.WebSocketActor.WebSocketError
     else {
-      throw ExplicitFailure()
+      #expect(Bool(false))
+      return
     }
     #expect(error == .connectionClosed)
     
@@ -610,8 +613,6 @@ extension Tag {
   @Tag static var frame: Self
 }
 
-struct ExplicitFailure: Error { }
-
 @MainActor
 func connectionIsClosed(
   _ webSocketActor: AsyncWebSocketClient.WebSocketActor,
@@ -631,7 +632,7 @@ func connectionIsClosed(
     case let .failure(error) = result,
     let error = error as? AsyncWebSocketClient.WebSocketActor.WebSocketError
   else {
-    throw ExplicitFailure()
+    return false
   }
   return error == .connectionClosed
 }

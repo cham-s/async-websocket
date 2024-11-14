@@ -93,6 +93,7 @@ let package = Package(
          "AsyncWebSocketClient",
          "AsyncWebSocketClientLive",
          "AsyncWebSocketOperators",
+         .product(name: "CasePaths", package: "swift-case-paths"),
          .product(name: "Dependencies", package: "swift-dependencies"),
          .product(name: "NIOCore", package: "swift-nio"),
          .product(name: "NIOEmbedded", package: "swift-nio"),

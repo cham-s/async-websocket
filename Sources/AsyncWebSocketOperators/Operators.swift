@@ -100,14 +100,15 @@ extension AsyncStream where Element == AsyncWebSocketClient.Frame {
   /// Attemps to decode into JSON if the frame is message.data or message.text.
   @inlinable
   public func json<T>(
-    _ type: T.Type
+    decoder: JSONDecoder = JSONDecoder(),
+    of type: T.Type
   ) -> AsyncStream<Result<T, any Error>> where T: Codable, T: Sendable {
     self
       .on(\.message)
       .toResult {
         switch $0 {
         case let .binary(data):
-          return try JSONDecoder().decode(T.self, from: data)
+          return try decoder.decode(T.self, from: data)
         case let .text(string):
           guard let data = string.data(using: .utf8) else {
             throw NSError(
@@ -123,15 +124,16 @@ extension AsyncStream where Element == AsyncWebSocketClient.Frame {
   
   /// Decodes incoming text and data frames into JSON ignoring failing conversion to JSON.
   @inlinable
-  public func validJSON<T>(
-    _ type: T.Type
+  public func success<T>(
+    decoder: JSONDecoder = JSONDecoder(),
+    of type: T.Type
   ) -> AsyncStream<T> where T: Codable, T: Sendable {
     self
       .on(\.message)
       .resultCatchingFailure(transform: {
         switch $0 {
         case let .binary(data):
-          return try JSONDecoder().decode(T.self, from: data)
+          return try decoder.decode(T.self, from: data)
         case let .text(string):
           guard let data = string.data(using: .utf8) else {
             throw NSError(
