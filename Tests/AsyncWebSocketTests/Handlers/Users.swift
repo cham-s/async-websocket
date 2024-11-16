@@ -7,7 +7,6 @@ import NIOCore
 import NIOHTTP1
 import NIOPosix
 import NIOWebSocket
-import Observation
 
 /// The runtime responsible for checking that each request received will be treated as a response in the same order.
 final actor ServerRuntime {
