@@ -15,7 +15,7 @@ extension AsyncStream where Element == AsyncWebSocketClient.Frame {
   ///
   /// If no associated value is available Void is emitted.
   ///  - Parameters:
-  ///   - status: A CaseKeyPath for accessing the desired frame.
+  ///   - frame: A CaseKeyPath for accessing the desired frame.
   ///   - onClose: A closure to invoke upon close..
   @inlinable
   public func on<Value>(
@@ -62,6 +62,33 @@ extension AsyncStream where Element == AsyncWebSocketClient.ConnectionStatus {
   }
 }
 
+extension AsyncStream where Element: CasePathable & Sendable {
+  /// Listens for a particular event among many cases of an enum and subscribes to its associated value.
+  ///
+  /// If no associated value is available Void is emitted.
+  ///  - Parameters:
+  ///   - case: A CaseKeyPath for accessing the desired case.
+  @inlinable
+  public func `case`<Value>(
+    _ `case`: CaseKeyPath<Element, Value>
+  ) -> AsyncStream<Value> {
+    self.compactMap { $0[case: `case`] }.eraseToStream()
+  }
+}
+
+extension AsyncStream where Element: Sendable {
+  /// Focuses on listening on a particular field of a nested structure.
+  ///
+  ///  - Parameters:
+  ///   - field: A keyPath for accessing the desired field.
+  @inlinable
+  public func field<Value: Sendable>(
+    _ field: KeyPath<Element, Value>
+  ) -> AsyncStream<Value> {
+    self.map { $0[keyPath: field] }.eraseToStream()
+  }
+}
+ 
 extension AsyncStream where Element: Sendable {
   /// Transforms a stream of Element into a stream of Result of transformed Element or Error.
   ///
@@ -100,7 +127,7 @@ extension AsyncStream where Element == AsyncWebSocketClient.Frame {
   /// Attemps to decode into JSON if the frame is message.data or message.text.
   @inlinable
   public func json<T>(
-    decoder: JSONDecoder = JSONDecoder(),
+    decoder: JSONDecoder = .init(),
     of type: T.Type
   ) -> AsyncStream<Result<T, any Error>> where T: Codable, T: Sendable {
     self
@@ -125,11 +152,11 @@ extension AsyncStream where Element == AsyncWebSocketClient.Frame {
   /// Decodes incoming text and data frames into JSON ignoring failing conversion to JSON.
   @inlinable
   public func success<T>(
-    decoder: JSONDecoder = JSONDecoder(),
+    decoder: JSONDecoder = .init(),
     of type: T.Type
   ) -> AsyncStream<T> where T: Codable, T: Sendable {
     self
-      .on(\.message)
+      .case(\.message)
       .resultCatchingFailure(transform: {
         switch $0 {
         case let .binary(data):

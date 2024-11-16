@@ -75,7 +75,8 @@ class AsyncWebSocketOperatorsTests {
   
   @Test(
     "Check successful connected case",
-    .tags(.operator)
+    .tags(.operator),
+    .timeLimit(.minutes(1))
   )
   func onConnected() async throws {
     let webSocketActor = AsyncWebSocketClient.WebSocketActor()
@@ -138,7 +139,8 @@ class AsyncWebSocketOperatorsTests {
   
   @Test(
     "Checks failed the connected case",
-    .tags(.operator)
+    .tags(.operator),
+    .timeLimit(.minutes(1))
   )
   func onConnectedFailure() async throws {
     let webSocketActor = AsyncWebSocketClient.WebSocketActor()
@@ -176,7 +178,8 @@ class AsyncWebSocketOperatorsTests {
   
   @Test(
     "Check text case",
-    .tags(.operator)
+    .tags(.operator),
+    .timeLimit(.minutes(1))
   )
   func onText() async throws {
     let webSocketActor = AsyncWebSocketClient.WebSocketActor()

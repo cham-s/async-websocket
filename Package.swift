@@ -28,6 +28,7 @@ let package = Package(
   dependencies: [
     .package(url: "https://github.com/apple/swift-nio.git", from: "2.76.1"),
     .package(url: "https://github.com/apple/swift-log.git", from: "1.6.1"),
+    .package(url: "https://github.com/apple/swift-collections.git", from: "1.1.4"),
     .package(url: "https://github.com/pointfreeco/swift-dependencies", from: "1.4.1"),
     .package(url: "https://github.com/pointfreeco/swift-custom-dump.git", from: "1.3.3"),
     .package(url: "https://github.com/pointfreeco/swift-case-paths.git", from: "1.5.6"),
@@ -37,7 +38,7 @@ let package = Package(
   ],
   
   targets: [
-    // MARK: - Umbrella Modules
+    // MARK: - Umbrella Module
     .target(
        name: "AsyncWebSocket",
        dependencies: [
@@ -95,6 +96,7 @@ let package = Package(
          "AsyncWebSocketOperators",
          .product(name: "CasePaths", package: "swift-case-paths"),
          .product(name: "Dependencies", package: "swift-dependencies"),
+         .product(name: "DequeModule", package: "swift-collections"),
          .product(name: "NIOCore", package: "swift-nio"),
          .product(name: "NIOEmbedded", package: "swift-nio"),
          .product(name: "NIOHTTP1", package: "swift-nio"),

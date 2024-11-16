@@ -73,7 +73,8 @@ class AsyncWebSocketBasicTests {
   
   @Test(
     "Check connection ivalid WebSocket URL",
-    .tags(.connection)
+    .tags(.connection),
+    .timeLimit(.minutes(1))
   )
   func connectionWithInvalidURL() async throws {
     let webSocketActor = AsyncWebSocketClient.WebSocketActor()
@@ -105,7 +106,8 @@ class AsyncWebSocketBasicTests {
 
   @Test(
     "Check connection Error",
-    .tags(.connection)
+    .tags(.connection),
+    .timeLimit(.minutes(1))
   )
   func connectionWithExpectedError() async throws {
     let webSocketActor = AsyncWebSocketClient.WebSocketActor()
@@ -143,7 +145,8 @@ class AsyncWebSocketBasicTests {
   
   @Test(
     "Check connection with valid URL",
-    .tags(.connection)
+    .tags(.connection),
+    .timeLimit(.minutes(1))
   )
   func connectionWithValidURL() async throws {
     let webSocketActor = AsyncWebSocketClient.WebSocketActor()
@@ -193,7 +196,8 @@ class AsyncWebSocketBasicTests {
   
   @Test(
     "Check for throwing error when calling send on a closed connection",
-    .tags(.connection)
+    .tags(.connection),
+    .timeLimit(.minutes(1))
   )
   
   func callSendOnAClosedConnection() async throws {
@@ -210,7 +214,8 @@ class AsyncWebSocketBasicTests {
   
   @Test(
     "Check calling receive on a closed connection throws an error",
-    .tags(.connection)
+    .tags(.connection),
+    .timeLimit(.minutes(1))
   )
   func callReceiveOnAClosedConnection() async throws {
     let webSocketActor = AsyncWebSocketClient.WebSocketActor()
@@ -239,7 +244,8 @@ class AsyncWebSocketBasicTests {
   
   @Test(
     "Check text frame",
-    .tags(.frame)
+    .tags(.frame),
+    .timeLimit(.minutes(1))
   )
   func text() async throws {
     let webSocketActor = AsyncWebSocketClient.WebSocketActor()
@@ -313,7 +319,8 @@ class AsyncWebSocketBasicTests {
   
   @Test(
     "Check data frame",
-    .tags(.frame)
+    .tags(.frame),
+    .timeLimit(.minutes(1))
   )
   func data() async throws {
     let webSocketActor = AsyncWebSocketClient.WebSocketActor()
@@ -392,7 +399,8 @@ class AsyncWebSocketBasicTests {
   
   @Test(
     "Check ping frame",
-    .tags(.frame)
+    .tags(.frame),
+    .timeLimit(.minutes(1))
   )
   func ping() async throws {
     let webSocketActor = AsyncWebSocketClient.WebSocketActor()
@@ -468,7 +476,11 @@ class AsyncWebSocketBasicTests {
   // - closes ID1
   // - sends  ping to ID2
   // - closes ID2
-  @Test( "Test multiple connections ")
+  @Test(
+    "Test multiple connections ",
+    .tags(.connection),
+    .timeLimit(.minutes(1))
+  )
   func multipleConnections() async throws {
     let webSocketActor = AsyncWebSocketClient.WebSocketActor()
     try #require(self.serverChannel != nil)

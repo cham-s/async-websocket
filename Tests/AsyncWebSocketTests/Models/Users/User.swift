@@ -31,9 +31,15 @@ struct GetUsersRequest: Codable, Sendable, Equatable {
 
 @CasePathable
 enum Request: Codable, Sendable, Equatable {
-  case getUsers(count: Count)
-  case startStream
-  case stopStream
+  case single(RequestType)
+  case batch([RequestType])
+  
+  @CasePathable
+  enum RequestType: Codable, Sendable, Equatable {
+    case getUsers(count: Count)
+    case startStream
+    case stopStream
+  }
 }
 
 struct GetUsersResponse: Codable, Sendable, Equatable {
@@ -50,6 +56,7 @@ enum Response: Codable, Sendable, Equatable {
   case startStream
   case stopStream
   
+  @CasePathable
   enum Result: Codable, Sendable, Equatable {
     case success(Response)
     case failure(RequestError)
@@ -77,15 +84,20 @@ struct NewUserEvent: Codable, Sendable, Equatable {
   }
 }
 
+@CasePathable
 enum Event: Codable, Sendable, Equatable {
   case newUser(NewUserEvent)
+  case streamStarted
+  case streamStopped
 }
 
+@CasePathable
 enum ErrorCode: Codable, Sendable, Equatable {
   case invalidJSONFormat
   case internalServerError
 }
 
+@CasePathable
 enum Message: Codable, Sendable, Equatable {
   case request(Request)
   case response(Response.Result)
