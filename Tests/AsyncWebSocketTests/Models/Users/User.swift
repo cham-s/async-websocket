@@ -95,6 +95,8 @@ enum Event: Codable, Sendable, Equatable {
 enum ErrorCode: Codable, Sendable, Equatable {
   case invalidJSONFormat
   case internalServerError
+  case streamAlreadyStarted
+  case streamNotStarted
 }
 
 @CasePathable

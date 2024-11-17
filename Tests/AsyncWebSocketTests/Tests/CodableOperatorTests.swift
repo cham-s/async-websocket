@@ -104,7 +104,7 @@ class CodableOperatorWithUsersHandlerTests {
          },
          onDidFail: { _ in
            didFail.withValue { $0 = true }
-           fatalError()
+           #expect(Bool(false))
          }) {
       
       
@@ -204,7 +204,7 @@ class CodableOperatorWithUsersHandlerTests {
          },
          onDidFail: { _ in
            didFail.withValue { $0 = true }
-           fatalError()
+           #expect(Bool(false))
          }) {
       
       // Checks if the connection is active.
@@ -251,6 +251,302 @@ class CodableOperatorWithUsersHandlerTests {
         var responsesIterator = responses.makeAsyncIterator()
         #expect(await responsesIterator.next() == .success(.startStream))
         #expect(await responsesIterator.next() == .success(.stopStream))
+      }
+      
+      await Task.yield()
+      _ = try await responsesTask.value
+      
+      // Close the connection
+      try await webSocketActor.send(
+        id: id,
+        frame: .close(code: .normalClosure)
+      )
+    }
+    
+    #expect(didFail.value == false)
+    #expect(closeCode.value == .normalClosure)
+
+    // Checks if the connection is closed.
+    let isClosed = try await connectionIsClosed(webSocketActor, id: id)
+    #expect(isClosed)
+    
+    // Checks if there is no more active connection inside the actor.
+    #expect(await webSocketActor.connections.count == 0)
+  }
+  
+  @Test(
+    "Check response failure on already started stream",
+    .tags(.codable),
+    .timeLimit(.minutes(1))
+  )
+  func failureOnStartStreaemAlreadyStarted() async throws {
+    let webSocketActor = AsyncWebSocketClient.WebSocketActor()
+    try #require(self.serverChannel != nil)
+    
+    let (host, port) = try #require(self.hostAndPort)
+    let id = AsyncWebSocketClient.ID()
+    
+    let statuses = try await webSocketActor.open(
+      settings: AsyncWebSocketClient.Settings(
+        id: id,
+        url: "ws://\(host)",
+        port: port
+      )
+    )
+    
+    // Checks if a connected event has been emitted
+    let didFail = LockIsolated<Bool>(false)
+    let closeCode = LockIsolated<WebSocketErrorCode?>(nil)
+    for await _ in statuses
+      .on(
+        \.connected,
+         onDidClose: { code in
+           closeCode.withValue { $0 =  code }
+         },
+         onDidFail: { _ in
+           didFail.withValue { $0 = true }
+           #expect(Bool(false))
+         }) {
+      
+      // Checks if the connection is active.
+      #expect(await webSocketActor.connections.count == 1)
+      
+      // Checks if the connection is related to the current id.
+      _ = try #require(
+        await webSocketActor.connections.keys.first(where: { $0 == id })
+      )
+      
+      /// Task handling the stream of frame logic.
+      let responsesTask = Task {
+        let responses = try await webSocketActor
+          .receive(id: id)
+          .success(of: Message.self)
+          .case(\.response)
+        
+        /// Starts the stream of User.
+        let startStreamTask = Task {
+          let request = Message.request(.single(.startStream))
+          let data = try JSONEncoder().encode(request)
+          try await webSocketActor.send(
+            id: id,
+            frame: .message(.binary(data))
+          )
+        }
+        
+        /// Starts the stream of User.
+        let startStreamAgainTask = Task {
+          let request = Message.request(.single(.startStream))
+          let data = try JSONEncoder().encode(request)
+          try await webSocketActor.send(
+            id: id,
+            frame: .message(.binary(data))
+          )
+        }
+        
+        await Task.yield()
+        _ = try await startStreamTask.value
+        
+        await Task.yield()
+        _ = try await startStreamAgainTask.value
+
+        var responsesIterator = responses.makeAsyncIterator()
+        #expect(await responsesIterator.next() == .success(.startStream))
+        #expect(
+          await responsesIterator.next() == .failure(
+            RequestError(
+              code: .streamAlreadyStarted,
+              reason: nil
+            )
+          )
+        )
+      }
+      
+      await Task.yield()
+      _ = try await responsesTask.value
+      
+      // Close the connection
+      try await webSocketActor.send(
+        id: id,
+        frame: .close(code: .normalClosure)
+      )
+    }
+    
+    #expect(didFail.value == false)
+    #expect(closeCode.value == .normalClosure)
+
+    // Checks if the connection is closed.
+    let isClosed = try await connectionIsClosed(webSocketActor, id: id)
+    #expect(isClosed)
+    
+    // Checks if there is no more active connection inside the actor.
+    #expect(await webSocketActor.connections.count == 0)
+  }
+  
+  @Test(
+    "Check failure on trying to stop not started stream",
+    .tags(.codable),
+    .timeLimit(.minutes(1))
+  )
+  func failureOnStopNotStartedStream() async throws {
+    let webSocketActor = AsyncWebSocketClient.WebSocketActor()
+    try #require(self.serverChannel != nil)
+    
+    let (host, port) = try #require(self.hostAndPort)
+    let id = AsyncWebSocketClient.ID()
+    
+    let statuses = try await webSocketActor.open(
+      settings: AsyncWebSocketClient.Settings(
+        id: id,
+        url: "ws://\(host)",
+        port: port
+      )
+    )
+    
+    // Checks if a connected event has been emitted
+    let didFail = LockIsolated<Bool>(false)
+    let closeCode = LockIsolated<WebSocketErrorCode?>(nil)
+    for await _ in statuses
+      .on(
+        \.connected,
+         onDidClose: { code in
+           closeCode.withValue { $0 =  code }
+         },
+         onDidFail: { _ in
+           didFail.withValue { $0 = true }
+           #expect(Bool(false))
+         }) {
+      
+      // Checks if the connection is active.
+      #expect(await webSocketActor.connections.count == 1)
+      
+      // Checks if the connection is related to the current id.
+      _ = try #require(
+        await webSocketActor.connections.keys.first(where: { $0 == id })
+      )
+      
+      /// Task handling the stream of frame logic.
+      let responsesTask = Task {
+        let responses = try await webSocketActor
+          .receive(id: id)
+          .success(of: Message.self)
+          .case(\.response.failure)
+        
+        /// Stops the stream of User.
+        let stopStreamTask = Task {
+          let request = Message.request(.single(.stopStream))
+          let data = try JSONEncoder().encode(request)
+          try await webSocketActor.send(
+            id: id,
+            frame: .message(.binary(data))
+          )
+        }
+        
+        await Task.yield()
+        _ = try await stopStreamTask.value
+        
+        var responsesIterator = responses.makeAsyncIterator()
+        #expect(
+          await responsesIterator.next() == RequestError(
+            code: .streamNotStarted,
+            reason: nil
+          )
+        )
+      }
+      
+      await Task.yield()
+      _ = try await responsesTask.value
+      
+      // Close the connection
+      try await webSocketActor.send(
+        id: id,
+        frame: .close(code: .normalClosure)
+      )
+    }
+    
+    #expect(didFail.value == false)
+    #expect(closeCode.value == .normalClosure)
+
+    // Checks if the connection is closed.
+    let isClosed = try await connectionIsClosed(webSocketActor, id: id)
+    #expect(isClosed)
+    
+    // Checks if there is no more active connection inside the actor.
+    #expect(await webSocketActor.connections.count == 0)
+  }
+  
+  @Test(
+    "Check batch request with field operator",
+    .tags(.codable),
+    .timeLimit(.minutes(1))
+  )
+  func batchRequest() async throws {
+    let webSocketActor = AsyncWebSocketClient.WebSocketActor()
+    try #require(self.serverChannel != nil)
+    
+    let (host, port) = try #require(self.hostAndPort)
+    let id = AsyncWebSocketClient.ID()
+    
+    let statuses = try await webSocketActor.open(
+      settings: AsyncWebSocketClient.Settings(
+        id: id,
+        url: "ws://\(host)",
+        port: port
+      )
+    )
+    
+    // Checks if a connected event has been emitted
+    let didFail = LockIsolated<Bool>(false)
+    let closeCode = LockIsolated<WebSocketErrorCode?>(nil)
+    for await _ in statuses
+      .on(
+        \.connected,
+         onDidClose: { code in
+           closeCode.withValue { $0 =  code }
+         },
+         onDidFail: { _ in
+           didFail.withValue { $0 = true }
+           #expect(Bool(false))
+         }) {
+      
+      // Checks if the connection is active.
+      #expect(await webSocketActor.connections.count == 1)
+      
+      // Checks if the connection is related to the current id.
+      _ = try #require(
+        await webSocketActor.connections.keys.first(where: { $0 == id })
+      )
+      
+      /// Task handling the stream of frame logic.
+      let responsesTask = Task {
+        let responses = try await webSocketActor
+          .receive(id: id)
+          .success(of: Message.self)
+          .case(\.response.success.getUsers)
+          .field(\.users)
+        
+        /// Starts a batch request.
+        let stopStreamTask = Task {
+          let request = Message.request(
+            .batch([
+              .getUsers(count: .one),
+              .getUsers(count: .two),
+              .getUsers(count: .three),
+            ])
+          )
+          let data = try JSONEncoder().encode(request)
+          try await webSocketActor.send(
+            id: id,
+            frame: .message(.binary(data))
+          )
+        }
+        
+        await Task.yield()
+        _ = try await stopStreamTask.value
+        
+        var responsesIterator = responses.makeAsyncIterator()
+        #expect(await responsesIterator.next() == [.a])
+        #expect(await responsesIterator.next() == [.a, .b])
+        #expect(await responsesIterator.next() == [.a, .b, .c])
       }
       
       await Task.yield()

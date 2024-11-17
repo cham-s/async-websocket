@@ -10,8 +10,6 @@ import NIOWebSocket
 
 /// The runtime responsible for checking that each request received will be treated as a response in the same order.
 final actor ServerRuntime {
-  @Dependency(\.continuousClock) var clock
-  
   var expectedOrder: Deque<UUID> = []
   var requests: Deque<InternalRequest> = [] {
     didSet {
@@ -54,8 +52,14 @@ final actor ServerRuntime {
     request: InternalRequest,
     context: ChannelHandlerContext
   ) {
+    guard self.streamTask == nil else {
+      let message = Message.response(
+        .failure(.init(code: .streamAlreadyStarted))
+      )
+      self.submit(InternalMessage(request: request, message: message))
+      return
+    }
     self.streamTask = Task {
-
       let message = Message.response(.success(.startStream))
       self.submit(InternalMessage(request: request, message: message))
     }
@@ -65,6 +69,13 @@ final actor ServerRuntime {
     request: InternalRequest,
     context: ChannelHandlerContext
   ) {
+    guard self.streamTask != nil else {
+      let message = Message.response(
+        .failure(.init(code: .streamNotStarted))
+      )
+      self.submit(InternalMessage(request: request, message: message))
+      return
+    }
     self.streamTask?.cancel()
     self.streamTask = nil
     let message = Message.response(.success(.stopStream))
@@ -254,6 +265,12 @@ final class UsersHandler: @unchecked Sendable, ChannelInboundHandler {
   
   public func channelReadComplete(context: ChannelHandlerContext) {
     context.flush()
+  }
+  
+  func channelInactive(context: ChannelHandlerContext) {
+    Task {
+      await self.serverRuntime.shutdown()
+    }
   }
   
   private func receivedClose(context: ChannelHandlerContext, frame: WebSocketFrame) {

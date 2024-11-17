@@ -512,8 +512,6 @@ class AsyncWebSocketBasicTests {
     var statusIterator1 = statuses1.makeAsyncIterator()
     #expect(await statusIterator1.next() == .connecting)
     #expect(await statusIterator1.next() == .connected)
-    let count = await webSocketActor.connections.count
-    print("count: \(count)")
 
     // Checks for status evolution for id2.
     var statusIterator2 = statuses2.makeAsyncIterator()
