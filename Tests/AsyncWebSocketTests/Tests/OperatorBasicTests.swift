@@ -227,17 +227,6 @@ class AsyncWebSocketOperatorsTests {
           .receive(id: id)
           .on(\.message.text)
         
-        let firstUsers = try await webSocketActor
-          .receive(id: id)
-          .success(of: Message.self)
-          .case(\.response.success.getUsers)
-          .field(\.users[0].name)
-        
-        // firstUsers is of type AsyncStream<String>
-        for await user in firstUsers {
-          print("The first user of the list is \(user)")
-        }
-
         let helloTask = Task {
           try await webSocketActor.send(
             id: id,
