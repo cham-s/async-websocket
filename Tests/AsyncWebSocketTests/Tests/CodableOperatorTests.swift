@@ -525,7 +525,7 @@ class CodableOperatorWithUsersHandlerTests {
           .field(\.users)
         
         /// Starts a batch request.
-        let stopStreamTask = Task {
+        let batchRequestTask = Task {
           let request = Message.request(
             .batch([
               .getUsers(count: .one),
@@ -541,7 +541,7 @@ class CodableOperatorWithUsersHandlerTests {
         }
         
         await Task.yield()
-        _ = try await stopStreamTask.value
+        _ = try await batchRequestTask.value
         
         var responsesIterator = responses.makeAsyncIterator()
         #expect(await responsesIterator.next() == [.a])

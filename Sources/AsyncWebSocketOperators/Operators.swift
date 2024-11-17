@@ -104,6 +104,8 @@ extension AsyncStream where Element: Sendable {
       .eraseToStream()
   }
   
+  /// Forwards the `Success` case of a `Result` and catches the `Failure` with an opportunity to perform an operation on the error.
+  @inlinable
   public func resultCatchingFailure<T: Sendable>(
     transform: @Sendable @escaping (Element) throws -> T,
     operation: (@Sendable (any Error) -> Void )? = nil

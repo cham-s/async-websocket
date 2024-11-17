@@ -24,6 +24,317 @@ A client for handling commumication via the WebSocket protocol using Swift `asyn
 
 ## Preview <a name="preview"></a>
 
+What makes the the client interesting is the use of operators to ease the transition between an incoming frame and a type that is easier to work with inside Swift.
+
+`Incoming Websocket frame -> (Operator) -> Swift type`
+
+At the end we have transformation from a stream of WebSocket frame into a Swfit type that is related to our code base.
+
+Here is a presentation of the operators assuming we have a code base where the server and the client share the same models as way of communication shaped as follow:
+
+<details>
+
+<summary>Full Models</summary>
+
+```swift
+import CasePaths
+
+struct User: Sendable, Codable, Equatable {
+  let id: Int
+  let name: String
+}
+
+enum Count: Int, Codable, Sendable, Equatable {
+  case one = 1
+  case two
+  case three
+}
+
+extension Array where Element == User {
+  static let users: Self = [.a, .b, .c]
+}
+
+extension User {
+  static let a = Self(id: 1, name: "A")
+  static let b = Self(id: 2, name: "B")
+  static let c = Self(id: 3, name: "C")
+}
+
+struct GetUsersRequest: Codable, Sendable, Equatable {
+  let count: Count
+
+  init(count: Count) {
+    self.count = count
+  }
+}
+
+@CasePathable
+enum Request: Codable, Sendable, Equatable {
+  case single(RequestType)
+  case batch([RequestType])
+
+  @CasePathable
+  enum RequestType: Codable, Sendable, Equatable {
+    case getUsers(count: Count)
+    case startStream
+    case stopStream
+  }
+}
+
+struct GetUsersResponse: Codable, Sendable, Equatable {
+  let users: [User]
+
+  init(users: [User]) {
+    self.users = users
+  }
+}
+
+@CasePathable
+enum Response: Codable, Sendable, Equatable {
+  case getUsers(GetUsersResponse)
+  case startStream
+  case stopStream
+
+  @CasePathable
+  enum Result: Codable, Sendable, Equatable {
+    case success(Response)
+    case failure(RequestError)
+  }
+}
+
+struct RequestError: Codable, Sendable, Equatable {
+  let code: ErrorCode
+  let reason: String?
+
+  init(
+    code: ErrorCode,
+    reason: String? = nil
+  ) {
+    self.code = code
+    self.reason = reason
+  }
+}
+
+struct NewUserEvent: Codable, Sendable, Equatable {
+  let user: User
+
+  init(user: User) {
+    self.user = user
+  }
+}
+
+@CasePathable
+enum Event: Codable, Sendable, Equatable {
+  case newUser(NewUserEvent)
+  case streamStarted
+  case streamStopped
+}
+
+@CasePathable
+enum ErrorCode: Codable, Sendable, Equatable {
+  case invalidJSONFormat
+  case internalServerError
+  case streamAlreadyStarted
+  case streamNotStarted
+}
+
+@CasePathable
+enum Message: Codable, Sendable, Equatable {
+  case request(Request)
+  case response(Response.Result)
+  case event(Event)
+}
+```
+
+</details>
+
+</details>
+
+## Operators
+
+- [`json`](#json)
+
+- [`success`](#success)
+
+- [`case`](#case)
+
+- [`field`](#field)
+
+### `json`<a name="json"></a>
+
+The `json` operator only focuses on the `message.binary` and the `message.text` WebSocket frame and ignores the rest.
+
+It attemps to parse the `binary` or the `text` frame into the given `Type` and returns the result as a `Result<Type, any Error>`.
+
+At the end we get an `AsyncStream<Result<<Type, any Error>>`
+
+```swift
+let results = try await webSocket
+ .receive(id)
+ .json(of: Message.self) // By default the decoder is initialized as JSONDecoder()
+
+// results is of type AsyncStream<Result<Message, any Error>>
+for await result in results {
+  switch result {
+    case let .success(message):
+    print("Succeeded: (message)")
+    case let .failure(error):
+    print("Failed: (error)")  
+  }
+}
+```
+
+### `success`<a name="success"></a>
+
+The `success` operator only focuses on the success case of the JSON decoding operation and ignores all failures.
+
+```swift
+let messages = try await webSocket
+  .receive(id)
+  .success(of: Message.self) // By default the decoder used is initialized is the JSONDecoder()
+
+// messages is of type AsyncStream<Message>
+for await message in messages {
+  switch message {
+  case let .request(request):
+    print("We received a request: \(request)")
+  case let .response(response):
+    print("We received a response: \(response)")
+  case let .event(event):
+    print("We received an event: \(event)")
+  }
+}
+```
+
+### `case`<a name="case"></a>
+
+The `case` operator focuses on a particular case of an enum of a stream where the Element is `CasePathable` allowing us to subscribe to its associate value.
+
+```swift
+let events = try await webSocket
+  .receive(id: id)
+  .success(of: Message.self)
+  .case(\.event)
+
+// event is of type AsyncStream<Event>
+for await event in events {
+  switch event {
+  case let .newUser(user):
+    print("We have a new user: \(user)")
+  case .streamStarted:
+    print("Stream has started")
+  case .streamStopped:
+    print("Stream has stopped")
+  }
+}
+```
+
+### `field`<a name="field"></a>
+
+The `field` operator focuses on a specific field of a type for a given `keyPath`.
+
+```swift
+ let firstUsers = try await webSocket
+   .receive(id: id)
+   .success(of: Message.self)
+   .case(\.response.success.getUsers)
+   .field(\.users[0].name)
+
+ // firstUsers is of type AsyncStream<String>
+ for await user in firstUsers {
+   print("The first user of the list is \(user)")
+ }
+```
+
+## Getting started
+
+The following is a code that can be copy and paste to try out the library.
+Each comment describes each step.
+The sample code can be run on any WebSocket endpoint prodived that the URL and port are valid.
+
+The code example assumes there is a WebSocket server running locally with URL `ws://localhost` at port `8888`.
+
+If needed, the examples repo contains servers that can be run locally to test the library.
+
+```swift
+import AsyncWebSocket
+
+@main
+@MainActor
+struct MainApp {
+  static func main() async throws {
+
+    /// Default instance of a WebSocket client.
+    let webSocket = AsyncWebSocketClient.default
+
+    /// A uniquely identifiable value to use for subsequent requests to the server.
+    let id = AsyncWebSocketClient.ID()
+
+    /// Connectivity status subscription
+    let connectionStatus  = try await webSocket.open(
+      AsyncWebSocketClient.Settings(
+        id: id,
+        url: "ws://localhost",
+        port: 8888
+      )
+    )
+
+    // Starts listening for connection events.
+    for await status in connectionStatus {
+      switch status {
+      case .connected:
+        print("[WebSocket - Status - Connected]: Connected to the server!")
+        // At this point a connection with the server has been established.
+        // We can start listening for incoming frames or send frames to the server.
+        async let listening: Void = startListeningForIncomingFrames()
+        async let sending: Void = sendFramesToTheServer()
+
+        try await listening
+        try await sending
+
+      case .connecting:
+        print("[WebSocket - Status - Connecting]: Connecting...")
+      case let .didClose(code):
+        print("[WebSocket - Status - Close]: Connection with server did close with the code: \(code)")
+      case let .didFail(error):
+        print("[WebSocket - Status - Failure]: Connection with server did fail with error: \(error)")
+      }
+    }
+
+    /// Initiates the act of receiving frames from the server.
+    @Sendable
+    func startListeningForIncomingFrames() async throws {
+      let frames = try await webSocket.receive(id)
+
+      for await frame in frames {
+        switch frame {
+        case let .message(.binary(data)):
+          print("[WebSocket - Frame - Message.binary]: \(data)")
+        case let .message(.text(string)):
+          print("[WebSocket - Frame - Message.text]: \(string)")
+        case let .ping(data):
+          print("[WebSocket - Frame - Ping]: \(data)")
+        case let .pong(data):
+          print("[WebSocket - Frame - Pong]: \(data)")
+        case let .close(code):
+          print("[WebSocket - Frame - Close]: \(code)")
+        }
+      }
+    }
+
+    /// Sends a series of frames to the server.
+    @Sendable
+    func sendFramesToTheServer() async throws {
+      let data = "Hello".data(using: .utf8)!
+      try await webSocket.send(id, .message(.binary(data)))
+      try await webSocket.send(id, .message(.text("Hello")))
+      try await webSocket.send(id, .ping())
+//      try await webSocket.send(id, .close(code: .goingAway))
+    }
+  }
+}
+```
+
 Once a connection is established with a WebSocket server we can simply use `for await in` to listen for connection status and subscribe for incomming frames
 
 ```swift
@@ -96,11 +407,7 @@ extension AsyncStream where Element == AsyncWebSocketClient.Frame {
     self
       .log()
       .on(\.message.text)
-      .map {
-        let data = $0.data(using: .utf8)!
-        return try JSONDecoder().decode(Message.self, from: data)
-      }
-      .eraseToStream()
+      .success(of: Message.self)
   }
 }
 ```
@@ -248,11 +555,7 @@ extension AsyncStream where Element == AsyncWebSocketClient.Frame {
     self
       .log(action: frameLogger)
       .on(\.message.text)
-      .map {
-        let data = $0.data(using: .utf8)!
-        return try JSONDecoder().decode(Message.self, from: data)
-      }
-      .eraseToStream()
+      .success(of: Message.self)
   }
 }
 ```
@@ -399,96 +702,7 @@ New emoji:  🍹
 
 </details>
 
-## Getting started <a name="getting-started"></a>
-
-The following is a code that can be copy and paste to try out the library.
-Each comment describes each step.
-The sample code can be run on any WebSocket endpoint prodived that the URL and port are valid.
-
-The code example assumes there is a WebSocket server running locally with URL `ws://localhost` at port `8888`.
-
-If needed, the examples repo contains servers that can be run locally to test the library.
-
-```swift
-import AsyncWebSocket
-
-@main
-@MainActor
-struct MainApp {
-  static func main() async throws {
-
-    /// Default instance of a WebSocket client.
-    let webSocket = AsyncWebSocketClient.default
-
-    /// A uniquely identifiable value to use for subsequent requests to the server.
-    let id = AsyncWebSocketClient.ID()
-
-    /// Connectivity status subscription
-    let connectionStatus  = try await webSocket.open(
-      AsyncWebSocketClient.Settings(
-        id: id,
-        url: "ws://localhost",
-        port: 8888
-      )
-    )
-
-    // Starts listening for connection events.
-    for await status in connectionStatus {
-      switch status {
-      case .connected:
-        print("[WebSocket - Status - Connected]: Connected to the server!")
-        // At this point a connection with the server has been established.
-        // We can start listening for incoming frames or send frames to the server.
-        async let listening: Void = startListeningForIncomingFrames()
-        async let sending: Void = sendFramesToTheServer()
-
-        try await listening
-        try await sending
-
-      case .connecting:
-        print("[WebSocket - Status - Connecting]: Connecting...")
-      case let .didClose(code):
-        print("[WebSocket - Status - Close]: Connection with server did close with the code: \(code)")
-      case let .didFail(error):
-        print("[WebSocket - Status - Failure]: Connection with server did fail with error: \(error)")
-      }
-    }
-
-    /// Initiates the act of receiving frames from the server.
-    @Sendable
-    func startListeningForIncomingFrames() async throws {
-      let frames = try await webSocket.receive(id)
-
-      for await frame in frames {
-        switch frame {
-        case let .message(.binary(data)):
-          print("[WebSocket - Frame - Message.binary]: \(data)")
-        case let .message(.text(string)):
-          print("[WebSocket - Frame - Message.text]: \(string)")
-        case let .ping(data):
-          print("[WebSocket - Frame - Ping]: \(data)")
-        case let .pong(data):
-          print("[WebSocket - Frame - Pong]: \(data)")
-        case let .close(code):
-          print("[WebSocket - Frame - Close]: \(code)")
-        }
-      }
-    }
-
-    /// Sends a series of frames to the server.
-    @Sendable
-    func sendFramesToTheServer() async throws {
-      let data = "Hello".data(using: .utf8)!
-      try await webSocket.send(id, .message(.binary(data)))
-      try await webSocket.send(id, .message(.text("Hello")))
-      try await webSocket.send(id, .ping())
-//      try await webSocket.send(id, .close(code: .goingAway))
-    }
-  }
-}
-```
-
-## More examples <a name="more-examples"></a>
+## More examples
 
 There is a dedicaded package with example demos that demonstrates different uses of the library: [examples-package](https://github.com/cham-s/async-websocket-examples)
 
@@ -562,56 +776,9 @@ import AsyncWebSocketOperators
 
 This target contains code for additional functionalities to improve the use of the library.
 
-- `on` operator
-
-```swift
-/// Listens for a particular event among many cases of an enum and subscribes to its associated value.
-///
-/// If no associated value is available Void is emitted.
-///  - Parameters:
-///   - status: A CaseKeyPath for accessing the desired frame.
-///   - onClose: A closure to invoke upon close..
-public func on<Value>(
-  _ frame: CaseKeyPath<AsyncWebSocketClient.Frame, Value>,
-  onClose: (@Sendable (WebSocketErrorCode) async -> Void)? = nil
-) -> AsyncStream<Value> { ... }
-
-/// Listens for a particular event among many cases of an enum and subscribes to its associated value.
-///
-/// If no associated value is available Void is emitted.
-///  - Parameters:
-///   - status: A CaseKeyPath for accessing the desired status.
-///   - onClose: A closure to invoke upon close.
-///   - onDidFail: A closure to invoke upon failure..
-public func on<Value>(
-  _ status: CaseKeyPath<AsyncWebSocketClient.ConnectionStatus, Value>,
-  onDidClose: (@Sendable (WebSocketErrorCode) async -> Void)? = nil,
-  onDidFail: (@Sendable (NSError) async -> Void)? = nil
-) -> AsyncStream<Value> { ... }
-```
-
-- `log` operator
-
-```swift
-extension AsyncStream where Self.Element == AsyncWebSocketClient.ConnectionStatus 
-```
-
-```swift
-/// Adds logging capability by logging every occuring event.
-///  - parameters:
-///  - action: A closure that prodives the current received for performing a logging action.
-public func log(action: (@Sendable (AsyncWebSocketClient.Frame) -> Void)? = nil) 
--> Self { ... }
 
 
-/// Adds logging capability by logging every occuring event.
-  ///  - parameters:
-  ///  - action: A closure that prodives the current received for performing a logging action.
-  public func log(action: (@Sendable (AsyncWebSocketClient.ConnectionStatus) -> Void)? = nil) 
--> Self { ... }
-```
-
-The thing is to compose with the right set of module needed for a given situation.
+The goal is to compose with the right set of module needed for a given situation.
 
 #### Swift Macros<a name="macros"></a>
 
