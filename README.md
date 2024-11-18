@@ -403,10 +403,9 @@ If no log operation is provided as argument to the `log` operator a default one 
 ```swift
 extension AsyncStream where Element == AsyncWebSocketClient.Frame {
   /// Transforms a stream of Frame into a stream of Emoji Message
-  func emojiMessage() throws -> AsyncStream<Message> {
+  func emojiMessage() -> AsyncStream<Message> {
     self
       .log()
-      .on(\.message.text)
       .success(of: Message.self)
   }
 }

@@ -77,9 +77,9 @@ class AsyncWebSocketBasicTests {
     .timeLimit(.minutes(1))
   )
   func connectionWithInvalidURL() async throws {
-    let webSocketActor = AsyncWebSocketClient.WebSocketActor()
 
     let openTask = Task {
+      let webSocketActor = AsyncWebSocketClient.WebSocketActor()
       _ = try await webSocketActor.open(
         settings: AsyncWebSocketClient.Settings(
           id:  AsyncWebSocketClient.ID(),
