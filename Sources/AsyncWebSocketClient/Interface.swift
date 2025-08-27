@@ -12,7 +12,7 @@ public struct AsyncWebSocketClient: Sendable {
   /// - Parameters:
   ///   - settings: Necessary configuration for setting up the connection with the server.
   /// - Returns: A stream of connection status.
-  public var open: @Sendable (_ settings: Settings) async throws -> AsyncStream<ConnectionStatus>
+  public var open: @Sendable (_ settings: Settings) async throws -> Void
   /// Starts to subscribe for incoming frames.
   ///
   /// - Parameters:
@@ -25,19 +25,28 @@ public struct AsyncWebSocketClient: Sendable {
   ///   - frame: The control frame to send to the the server.
   public var send: @Sendable (_ id: ID,_ frame: Frame) async throws -> Void
   
+  /// The connection status with the server.
+  /// - Parameters:
+  ///   - id: A value used to identify the connection.
+  /// - Returns: A boolean indicating if there is a connection or not.
+  public var isConnected: @Sendable (_ id: ID) async throws -> Bool
+  
   /// Instantiates a client to communicate with a server via the WebSocket protocol.
   /// - Parameters:
   ///   - open: Closure for attempting to initiate a connection.
   ///   - receive: Closure for starting  to subscribe for incoming frames.
   ///   - send: Closure for sending a WebSocket frame to the other end of a communication.
+  ///   - isConnected: Closure for sending a WebSocket frame to the other end of a communication.
   public init(
-    open: @escaping @Sendable (Settings) async throws -> AsyncStream<ConnectionStatus>,
+    open: @escaping @Sendable (Settings) async throws -> Void,
     receive: @escaping @Sendable (ID) async throws -> AsyncStream<Frame>,
-    send: @escaping @Sendable (ID, Frame) async throws -> Void
+    send: @escaping @Sendable (ID, Frame) async throws -> Void,
+    isConnected: @escaping @Sendable (_ id: ID) async throws -> Bool,
   ) {
     self.open = open
     self.receive = receive
     self.send = send
+    self.isConnected = isConnected
   }
   
   /// Event sent / received by the client / server during the lifetime of a WebSocket connection.
@@ -64,6 +73,11 @@ public struct AsyncWebSocketClient: Sendable {
     case text(String)
   }
   
+  public enum LoggingOption: Sendable {
+    case `default`
+    case timed
+  }
+  
   /// Configuration values to be used when establishing the connection with the server.
   public struct Settings: Sendable {
     public let id: ID
@@ -72,6 +86,7 @@ public struct AsyncWebSocketClient: Sendable {
     public let configuration: WebSocketKit.WebSocketClient.Configuration
     public let headers: HTTPHeaders
     public let pingInterval: TimeInterval?
+    public let loggingOption: LoggingOption?
     
     /// Creates a configuration for initiating a connection.
     /// - Parameters:
@@ -87,7 +102,8 @@ public struct AsyncWebSocketClient: Sendable {
       port: Int? = nil,
       configuration: WebSocketKit.WebSocketClient.Configuration = .init(),
       headers: HTTPHeaders = [:],
-      pingInterval: TimeInterval? = nil
+      pingInterval: TimeInterval? = nil,
+      loggingOption: LoggingOption? = .default
     ) {
       self.id = id
       self.url = url
@@ -95,6 +111,7 @@ public struct AsyncWebSocketClient: Sendable {
       self.headers = headers
       self.configuration = configuration
       self.pingInterval = pingInterval
+      self.loggingOption = loggingOption
     }
   }
   
@@ -109,6 +126,8 @@ public struct AsyncWebSocketClient: Sendable {
     case didClose(WebSocketErrorCode)
     /// Failed to established a connection
     case didFail(NSError)
+    /// No connection established.
+    case disconnected
   }
   
   /// A type used to identify the connection with the server.

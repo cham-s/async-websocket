@@ -1,4 +1,6 @@
 import AsyncWebSocketClient
+import Dependencies
+import DependenciesTestSupport
 import Foundation
 import NIOCore
 import NIOWebSocket
@@ -8,6 +10,7 @@ import Testing
 @testable import AsyncWebSocketClientLive
 
 @MainActor
+@Suite(.dependency(\.defaultWebSocketLogger, mainLogger()))
 class AsyncWebSocketBasicTests {
   private var group: EventLoopGroup!
   
@@ -72,15 +75,14 @@ class AsyncWebSocketBasicTests {
   }
   
   @Test(
-    "Check connection ivalid WebSocket URL",
+    "Check connection with invalid WebSocket URL",
     .tags(.connection),
-    .timeLimit(.minutes(1))
+    .timeLimit(.minutes(1)),
   )
   func connectionWithInvalidURL() async throws {
-
     let openTask = Task {
       let webSocketActor = AsyncWebSocketClient.WebSocketActor()
-      _ = try await webSocketActor.open(
+      try await webSocketActor.open(
         settings: AsyncWebSocketClient.Settings(
           id:  AsyncWebSocketClient.ID(),
           url: "ooo://localhost-\(UUID().uuidString)",
@@ -114,32 +116,17 @@ class AsyncWebSocketBasicTests {
 
     let id = AsyncWebSocketClient.ID()
     
-    let statuses = try await webSocketActor.open(
-      settings: AsyncWebSocketClient.Settings(
-        id: id,
-        url: "ws://localhost-\(UUID().uuidString)",
-        port: 9999
+    await #expect(throws: NIOConnectionError.self)  {
+      try await webSocketActor.open(
+        settings: AsyncWebSocketClient.Settings(
+          id: id,
+          url: "ws://localhost-\(UUID().uuidString)",
+          port: 9999
+        )
       )
-    )
-    
-    // Checks connection status evolution.
-    var statusIterator = statuses.makeAsyncIterator()
-    #expect(await statusIterator.next() == .connecting)
-    let status = await statusIterator.next()
-    
-    // Checks that an error was thrown.
-    guard
-      case .didFail = status
-    else {
-      #expect(Bool(false))
-      return
     }
     
-    // Checks if the connection is closed.
-    let isClosed = try await connectionIsClosed(webSocketActor, id: id)
-    #expect(isClosed)
-    
-    // Checks if there is no more active connection inside the actor.
+    // No more active connections.
     #expect(await webSocketActor.connections.count == 0)
   }
   
@@ -155,7 +142,7 @@ class AsyncWebSocketBasicTests {
     let (host, port) = try #require(self.hostAndPort)
     let id = AsyncWebSocketClient.ID()
     
-    let statuses = try await webSocketActor.open(
+    try await webSocketActor.open(
       settings: AsyncWebSocketClient.Settings(
         id: id,
         url: "ws://\(host)",
@@ -163,14 +150,6 @@ class AsyncWebSocketBasicTests {
       )
     )
     
-    // Checks connection status evolution.
-    var statusIterator = statuses.makeAsyncIterator()
-    
-    // Checks for status evolution.
-    var status = await statusIterator.next()
-    #expect(status == .connecting)
-    status = await statusIterator.next()
-    #expect(status == .connected)
     #expect(await webSocketActor.connections.count == 1)
     
     _ = try #require(
@@ -183,14 +162,11 @@ class AsyncWebSocketBasicTests {
       frame: .close(code: .normalClosure)
     )
     
-    #expect(await statusIterator.next() == .didClose(.normalClosure))
-    #expect(await statusIterator.next() == nil)
-    
+   
     // Checks if the connection is closed.
-    let isClosed = try await connectionIsClosed(webSocketActor, id: id)
-    #expect(isClosed)
+    #expect(try await !webSocketActor.isConnected(id: id))
     
-    // Checks if there is no more active connection inside the actor.
+    // No more active connections.
     #expect(await webSocketActor.connections.count == 0)
   }
   
@@ -205,10 +181,14 @@ class AsyncWebSocketBasicTests {
     
     let id = AsyncWebSocketClient.ID()
     
-    let isClosed = try await connectionIsClosed(webSocketActor, id: id)
-    #expect(isClosed)
+    await #expect(throws: AsyncWebSocketClient.WebSocketActor.WebSocketError.connectionClosed) {
+      try await webSocketActor.send(
+        id: id,
+        frame: .message(.text("Hello"))
+      )
+    }
     
-    // Checks if there is no more active connection inside the actor.
+    // No more active connections.
     #expect(await webSocketActor.connections.count == 0)
   }
   
@@ -222,23 +202,12 @@ class AsyncWebSocketBasicTests {
     
     let id = AsyncWebSocketClient.ID()
     
-    // Attemps to subrscribe for incoming frames.
-    let sendTask = Task { _ = try await webSocketActor.receive(id: id) }
-    
-    await Task.yield()
-    
     // Checks that an error was thrown from the server.
-    let result = await sendTask.result
-    guard
-      case let .failure(error) = result,
-      let error = error as? AsyncWebSocketClient.WebSocketActor.WebSocketError
-    else {
-      #expect(Bool(false))
-      return
+    await #expect(throws: AsyncWebSocketClient.WebSocketActor.WebSocketError.connectionClosed) {
+      _ = try await webSocketActor.receive(id: id)
     }
-    #expect(error == .connectionClosed)
     
-    // Checks if there is no more active connection inside the actor.
+    // No more active connections.
     #expect(await webSocketActor.connections.count == 0)
   }
   
@@ -255,8 +224,7 @@ class AsyncWebSocketBasicTests {
     
     let id = AsyncWebSocketClient.ID()
     
-    // Subscribes for connection statuses.
-    let statuses = try await webSocketActor.open(
+    try await webSocketActor.open(
       settings: AsyncWebSocketClient.Settings(
         id: id,
         url: "ws://\(host)",
@@ -264,11 +232,6 @@ class AsyncWebSocketBasicTests {
       )
     )
     
-    
-    // Checks for status evolution.
-    var statusIterator = statuses.makeAsyncIterator()
-    #expect(await statusIterator.next() == .connecting)
-    #expect(await statusIterator.next() == .connected)
     #expect(await webSocketActor.connections.count == 1)
 
     // Checks if a connection was added to the collection with the corresponding ID.
@@ -280,40 +243,21 @@ class AsyncWebSocketBasicTests {
     let frameStream = try await webSocketActor.receive(id: id)
     var frameIterator = frameStream.makeAsyncIterator()
     
-    // Sends frame to the server.
-    let frameTask = Task {
-      try await webSocketActor.send(
-        id: id,
-        frame: .message(.text("Hello"))
-      )
-    }
+    try await webSocketActor.send(
+      id: id,
+      frame: .message(.text("Hello"))
+    )
     
-    await Task.yield()
-    _ = try await frameTask.value
-
+    
     #expect(await frameIterator.next() == .message(.text("Hello")))
-    
-    // Closes the connection.
-    let closeTask = Task {
-      try await webSocketActor.send(
-        id: id,
-        frame: .close(code: .normalClosure)
-      )
-    }
-    
-    await Task.yield()
-    _ = try await closeTask.value
-    
-    #expect(await statusIterator.next() == .didClose(.normalClosure))
+    try await webSocketActor.send(id: id, frame: .close(code: .normalClosure))
+
     #expect(await frameIterator.next() == .close(code: .normalClosure))
     #expect(await frameIterator.next() == nil)
-    #expect(await statusIterator.next() == nil)
-    
     // Checks if the connection is closed.
-    let isClosed = try await connectionIsClosed(webSocketActor, id: id)
-    #expect(isClosed)
+    #expect(try await !webSocketActor.isConnected(id: id))
     
-    // Checks if there is no more active connection inside the actor.
+    // No more active connections.
     #expect(await webSocketActor.connections.count == 0)
   }
   
@@ -330,19 +274,13 @@ class AsyncWebSocketBasicTests {
     
     let id = AsyncWebSocketClient.ID()
     
-    // Subscribes for connection statuses.
-    let statuses = try await webSocketActor.open(
+    try await webSocketActor.open(
       settings: AsyncWebSocketClient.Settings(
         id: id,
         url: "ws://\(host)",
         port: port
       )
     )
-    
-    // Checks for status evolution.
-    var statusIterator = statuses.makeAsyncIterator()
-    #expect(await statusIterator.next() == .connecting)
-    #expect(await statusIterator.next() == .connected)
     
     #expect(await webSocketActor.connections.count == 1)
     
@@ -355,45 +293,26 @@ class AsyncWebSocketBasicTests {
     let frameStream = try await webSocketActor.receive(id: id)
     var frameIterator = frameStream.makeAsyncIterator()
     
-    // Sends frame to the server.
-    let frameTask = Task {
-      try await webSocketActor.send(
-        id: id,
-        frame: .message(.binary("Hello".data(using: .utf8)!))
-      )
-    }
-    
-    
-    await Task.yield()
-    _ = try await frameTask.value
-
-    #expect(
-      await frameIterator.next() ==  .message(
-        .binary("Hello".data(using: .utf8)!)
-      )
+    try await webSocketActor.send(
+      id: id,
+      frame: .message(.binary("Hello".data(using: .utf8)!))
     )
     
-    // Closes the connection.
-    let closeTask = Task {
-      try await webSocketActor.send(
-        id: id,
-        frame: .close(code: .normalClosure)
-      )
-    }
     
-    await Task.yield()
-    _ = try await closeTask.value
+
+    #expect(
+      await frameIterator.next() == .message( .binary("Hello".data(using: .utf8)!))
+    )
     
-    #expect(await statusIterator.next() == .didClose(.normalClosure))
+    try await webSocketActor.send(id: id, frame: .close(code: .normalClosure))
+    
     #expect(await frameIterator.next() == .close(code: .normalClosure))
     #expect(await frameIterator.next() == nil)
-    #expect(await statusIterator.next() == nil)
     
     // Checks if the connection is closed.
-    let isClosed = try await connectionIsClosed(webSocketActor, id: id)
-    #expect(isClosed)
+    #expect(try await !webSocketActor.isConnected(id: id))
     
-    // Checks if there is no more active connection inside the actor.
+    // No more active connections.
     #expect(await webSocketActor.connections.count == 0)
   }
   
@@ -410,18 +329,13 @@ class AsyncWebSocketBasicTests {
     
     let id = AsyncWebSocketClient.ID()
     
-    // Subscribes for connection statuses.
-    let statuses = try await webSocketActor.open(
+    try await webSocketActor.open(
       settings: AsyncWebSocketClient.Settings(
         id: id,
         url: "ws://\(host)",
         port: port
       )
     )
-    
-    var statusIterator = statuses.makeAsyncIterator()
-    #expect(await statusIterator.next() == .connecting)
-    #expect(await statusIterator.next() == .connected)
     
     #expect(await webSocketActor.connections.count == 1)
     
@@ -434,39 +348,21 @@ class AsyncWebSocketBasicTests {
     let frameStream = try await webSocketActor.receive(id: id)
     var frameIterator = frameStream.makeAsyncIterator()
     
-    // Sends frame to the server.
-    let frameTask = Task {
-      try await webSocketActor.send(
-        id: id,
-        frame: .ping()
-      )
-    }
+    try await webSocketActor.send(id: id, frame: .ping())
     
-    await Task.yield()
-    _ = try await frameTask.value
 
     #expect(await frameIterator.next() ==  .pong())
     
-    let closeTask = Task {
-      try await webSocketActor.send(
-        id: id,
-        frame: .close(code: .normalClosure)
-      )
-    }
+    try await webSocketActor.send(id: id, frame: .close(code: .normalClosure))
     
-    await Task.yield()
-    _ = try await closeTask.value
     
-    #expect(await statusIterator.next() == .didClose(.normalClosure))
     #expect(await frameIterator.next() == .close(code: .normalClosure))
     #expect(await frameIterator.next() == nil)
-    #expect(await statusIterator.next() == nil)
     
     // Checks if the connection is closed.
-    let isClosed = try await connectionIsClosed(webSocketActor, id: id)
-    #expect(isClosed)
+    #expect(try await !webSocketActor.isConnected(id: id))
     
-    // Checks if there is no more active connection inside the actor.
+    // No more active connections.
     #expect(await webSocketActor.connections.count == 0)
   }
   
@@ -477,7 +373,7 @@ class AsyncWebSocketBasicTests {
   // - sends  ping to ID2
   // - closes ID2
   @Test(
-    "Test multiple connections ",
+    "Test multiple connections",
     .tags(.connection),
     .timeLimit(.minutes(1))
   )
@@ -490,8 +386,7 @@ class AsyncWebSocketBasicTests {
     let id1 = AsyncWebSocketClient.ID()
     let id2 = AsyncWebSocketClient.ID()
 
-    // Subscribes for connection statuses for id1.
-    let statuses1 = try await webSocketActor.open(
+    try await webSocketActor.open(
       settings: AsyncWebSocketClient.Settings(
         id: id1,
         url: "ws://\(host)",
@@ -499,8 +394,7 @@ class AsyncWebSocketBasicTests {
       )
     )
     
-    // Subscribes for connection statuses for id2.
-    let statuses2 = try await webSocketActor.open(
+    try await webSocketActor.open(
       settings: AsyncWebSocketClient.Settings(
         id: id2,
         url: "ws://\(host)",
@@ -508,15 +402,6 @@ class AsyncWebSocketBasicTests {
       )
     )
     
-    // Checks for status evolution for id1.
-    var statusIterator1 = statuses1.makeAsyncIterator()
-    #expect(await statusIterator1.next() == .connecting)
-    #expect(await statusIterator1.next() == .connected)
-
-    // Checks for status evolution for id2.
-    var statusIterator2 = statuses2.makeAsyncIterator()
-    #expect(await statusIterator2.next() == .connecting)
-    #expect(await statusIterator2.next() == .connected)
     #expect(await webSocketActor.connections.count == 2)
 
     // Checks if a connection was added to the collection with the corresponding ID.
@@ -533,58 +418,27 @@ class AsyncWebSocketBasicTests {
     var frameIterator1 = frameStream1.makeAsyncIterator()
     var frameIterator2 = frameStream2.makeAsyncIterator()
     
-    // Sends ping frame to the server for id1.
-    let frameTask1 = Task {
-      try await webSocketActor.send(
-        id: id1,
-        frame: .ping()
-      )
-    }
+    try await webSocketActor.send(id: id1, frame: .ping())
     
     // Sends text frame to the server for id2.
-    let frameTask2 = Task {
-      try await webSocketActor.send(
-        id: id2,
-        frame: .message(.text("Hello"))
-      )
-    }
+    try await webSocketActor.send(id: id2, frame: .message(.text("Hello")))
     
-    await Task.yield()
-    _ = try await frameTask1.value
-    _ = try await frameTask2.value
     
     #expect(await frameIterator1.next() == .pong())
     #expect(await frameIterator2.next() == .message(.text("Hello")))
     
     // Closes connection for id1.
-    let closeId1Task = Task {
-      try await webSocketActor.send(
-        id: id1,
-        frame: .close(code: .goingAway)
-      )
-    }
+    try await webSocketActor.send( id: id1, frame: .close(code: .goingAway))
     
     // Sends ping frame to the server for id2.
-    let pingId2Task = Task {
-      try await webSocketActor.send(
-        id: id2,
-        frame: .ping("Task id2 ping".data(using: .utf8)!)
-      )
-    }
-    
-    await Task.yield()
-    _ = try await closeId1Task.value
-    _ = try await pingId2Task.value
+    try await webSocketActor.send(id: id2, frame: .ping("Task id2 ping".data(using: .utf8)!))
     
     #expect(await frameIterator1.next() == .close(code: .goingAway))
-    #expect(await statusIterator1.next() == .didClose(.goingAway))
     #expect(await frameIterator1.next() == nil)
-    #expect(await statusIterator1.next() == nil)
     #expect(await webSocketActor.connections.count == 1)
 
     // Checks that connection is closed for id1.
-    let isClosedId1 = try await connectionIsClosed(webSocketActor, id: id1)
-    #expect(isClosedId1)
+    #expect(try await !webSocketActor.isConnected(id: id1))
     
     // Checks pong response for id2.
     #expect(
@@ -592,26 +446,15 @@ class AsyncWebSocketBasicTests {
     )
     
     // Closes connection for id2.
-    let closeId2Task = Task {
-      try await webSocketActor.send(
-        id: id2,
-        frame: .close(code: .normalClosure)
-      )
-    }
-    
-    await Task.yield()
-    _ = try await closeId2Task.value
+    try await webSocketActor.send(id: id2, frame: .close(code: .normalClosure))
     
     #expect(await frameIterator2.next() == .close(code: .normalClosure))
-    #expect(await statusIterator2.next() == .didClose(.normalClosure))
     #expect(await frameIterator2.next() == nil)
-    #expect(await statusIterator2.next() == nil)
     
     // Checks that connection is closed for id2.
-    let isClosedId2 = try await connectionIsClosed(webSocketActor, id: id1)
-    #expect(isClosedId2)
+    #expect(try await !webSocketActor.isConnected(id: id2))
     
-    // Checks if there is no more active connection inside the actor.
+    // No more active connections.
     #expect(await webSocketActor.connections.count == 0)
   }
 }
@@ -623,26 +466,3 @@ extension Tag {
   @Tag static var frame: Self
 }
 
-@MainActor
-func connectionIsClosed(
-  _ webSocketActor: AsyncWebSocketClient.WebSocketActor,
-  id: AsyncWebSocketClient.ID
-) async throws -> Bool {
-  let sendTask = Task {
-    try await webSocketActor.send(
-      id: id,
-      frame: .message(.text("Hello"))
-    )
-  }
-  
-  await Task.yield()
-  
-  let result = await sendTask.result
-  guard
-    case let .failure(error) = result,
-    let error = error as? AsyncWebSocketClient.WebSocketActor.WebSocketError
-  else {
-    return false
-  }
-  return error == .connectionClosed
-}
